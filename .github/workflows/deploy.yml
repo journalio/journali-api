@@ -1,0 +1,93 @@
+name: deploy api
+
+on:
+    push:
+        branches:
+            - master
+    release:
+        types: [created]
+
+env:
+    REGISTRY_HOST: docker.pkg.github.com
+    STAGING_URL: http://staging.journali.nl
+    STAGING_SERVICE_NAME: journali-staging_api
+    PRODUCTION_URL: http://journali.nl
+    PRODUCTION_SERVICE_NAME: journali-production_api
+
+jobs:
+    deliver:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v2
+            -   name: publish api docker image
+                uses: elgohr/Publish-Docker-Github-Action@master
+                with:
+                    name: wesleyklop/journali-api/journali-api
+                    username: ${{ github.actor }}
+                    password: ${{ github.token }}
+                    registry: ${{ env.REGISTRY_HOST }}
+                    tag_semver: true
+    deploy-staging:
+        name: deploy to staging
+        if: ${{ github.event_name == 'push' }}
+        runs-on: self-hosted
+        needs: [deliver]
+        steps:
+            -   name: login to registry
+                run: echo ${{ github.token }} | docker login ${{ env.REGISTRY_HOST }} -u ${{ github.actor }} --password-stdin
+            -   name: start deployment
+                uses: bobheadxi/deployments@master
+                id: deployment
+                with:
+                    step: start
+                    token: ${{ github.token }}
+                    env: staging
+            -   name: run deployment
+                run: docker service update --with-registry-auth --force ${{ env.STAGING_SERVICE_NAME }}
+            -   name: rollback on deployment failure
+                if: failure()
+                run: docker service rollback ${{ env.STAGING_SERVICE_NAME }}
+            -   name: update deployment status
+                uses: bobheadxi/deployments@master
+                if: always()
+                with:
+                    step: finish
+                    token: ${{ github.token }}
+                    status: ${{ job.status }}
+                    env_url: ${{ env.STAGING_URL }}
+                    deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+            -   name: logout from registry
+                if: always()
+                run: docker logout ${{ env.REGISTRY_HOST }}
+    deploy-production:
+        name: deploy production
+        if: ${{ github.event_name == 'release' }}
+        runs-on: self-hosted
+        needs: [deliver]
+        steps:
+            -   name: login to registry
+                run: echo ${{ github.token }} | docker login ${{ env.REGISTRY_HOST }} -u ${{ github.actor }} --password-stdin
+            -   name: start deployment
+                uses: bobheadxi/deployments@master
+                id: deployment
+                with:
+                    step: start
+                    token: ${{ github.token }}
+                    env: production
+            -   name: run deployment
+                run: docker service update --with-registry-auth --force ${{ env.PRODUCTION_SERVICE_NAME }}
+            -   name: rollback on failure
+                if: failure()
+                run: docker service rollback ${{ env.PRODUCTION_SERVICE_NAME }}
+            -   name: update deployment status
+                uses: bobheadxi/deployments@master
+                if: always()
+                with:
+                    step: finish
+                    token: ${{ github.token }}
+                    status: ${{ job.status }}
+                    env_url: ${{ env.PRODUCTION_URL }}
+                    deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+            -   name: logout from registry
+                if: always()
+                run: docker logout ${{ env.REGISTRY_HOST }}
