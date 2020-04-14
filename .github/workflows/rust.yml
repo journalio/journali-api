@@ -12,10 +12,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v2
-            -   name: Install latest nightly
+            -   name: Install latest stable
                 uses: actions-rs/toolchain@v1
                 with:
-                    toolchain: nightly
+                    toolchain: stable
                     override: true
             -   name: Cache cargo registry
                 uses: actions/cache@v1
@@ -43,10 +43,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v2
-            -   name: Install latest nightly
+            -   name: Install latest stable
                 uses: actions-rs/toolchain@v1
                 with:
-                    toolchain: nightly
+                    toolchain: stable
                     override: true
             -   name: Cache cargo registry
                 uses: actions/cache@v1
@@ -73,10 +73,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v2
-            -   name: Install latest nightly
+            -   name: Install latest stable
                 uses: actions-rs/toolchain@v1
                 with:
-                    toolchain: nightly
+                    toolchain: stable
                     override: true
             -   run: rustup component add rustfmt
             -   uses: actions-rs/cargo@v1
@@ -89,10 +89,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v2
-            -   name: Install latest nightly-2020-04-06
+            -   name: Install latest stable
                 uses: actions-rs/toolchain@v1
                 with:
-                    toolchain: nightly-2020-04-06
+                    toolchain: stable
                     override: true
             -   name: Cache cargo registry
                 uses: actions/cache@v1

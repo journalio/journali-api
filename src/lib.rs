@@ -1,4 +1,3 @@
-#![feature(proc_macro_hygiene, decl_macro)]
 #![forbid(unsafe_code)]
 #![cfg_attr(feature = "strict", deny(warnings))]
 //! This is a library containing functionality for the journali
@@ -6,10 +5,9 @@
 //!
 //! This library exists for documentation purposes.
 
-#[macro_use]
-extern crate rocket;
+use actix_web::{get, web, HttpResponse, Responder};
 
-#[get("/hello/<name>/<age>")]
-pub fn hello(name: String, age: u8) -> String {
-    format!("Hello, {} year old named {}!", age, name)
+#[get("/hello/{name}")]
+pub async fn hello(data: web::Path<String>) -> impl Responder {
+    HttpResponse::Ok().body(format!("Hello sailor {}!", data.into_inner()))
 }
