@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly as builder
+FROM rust as builder
 WORKDIR /usr/src/journali-api
 COPY . .
 RUN cargo install --path .
