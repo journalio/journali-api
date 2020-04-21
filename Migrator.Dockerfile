@@ -1,6 +1,6 @@
 FROM christophwurst/diesel-cli:latest
 
-ADD migrations .
+COPY migrations .
 
 ENTRYPOINT ["diesel"]
 CMD ["migration", "run"]
