@@ -51,6 +51,8 @@ jobs:
                     registry: ${{ env.REGISTRY_HOST }}
                     tag_semver: true
                     dockerfile: Dockerfile
+            -   name: Display full image name
+                run: echo ${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
     deploy:
         name: deploy to an environment
         runs-on: self-hosted
