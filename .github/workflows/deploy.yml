@@ -84,7 +84,7 @@ jobs:
                     docker service update \
                       --update-failure-action=rollback \
                       --with-registry-auth \
-                      --image ${{ env.IMAGE_NAME }}:${{ jobs.deliver.output.tag }} \
+                      --image ${{ env.IMAGE_NAME }}:${{ needs.deliver.outputs.tag }} \
                     ${{ env.SERVICE }}
 
             -   name: update deployment status
