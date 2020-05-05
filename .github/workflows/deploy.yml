@@ -90,7 +90,7 @@ jobs:
                     docker run --rm \
                       --network ${{ env.NETWORK }} \
                       -e DATABASE_URL \
-                      -v ${{ github.workspace }}/migrations:/root/migrations
+                      -v ${{ github.workspace }}/migrations:/root/migrations \
                     christophwurst/diesel-cli diesel migration run
 
             # Deploy new api version
