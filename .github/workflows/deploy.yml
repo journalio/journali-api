@@ -23,7 +23,7 @@ jobs:
     deliver:
         runs-on: self-hosted
         outputs:
-            image: ${{ steps.publish.outputs.tag }}
+            image: ${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
         steps:
             -   uses: actions/checkout@v2
             -   name: Cache cargo registry
@@ -101,7 +101,7 @@ jobs:
                     docker service update \
                       --update-failure-action=rollback \
                       --with-registry-auth \
-                      --image ${{ env.IMAGE_NAME }}:${{ needs.deliver.outputs.tag }} \
+                      --image ${{ needs.deliver.outputs.image }} \
                     ${{ env.SERVICE }}
 
             -   name: update deployment status
