@@ -12,6 +12,17 @@ pub async fn hello(data: web::Path<String>) -> impl Responder {
     HttpResponse::Ok().body(format!("Hello sailor {}!", data.into_inner()))
 }
 
+#[get("/version")]
+pub async fn version() -> impl Responder {
+    #[cfg(target_os = "windows")]
+    const VERSION: &'static str = include_str!(r"..\.git\refs\heads\master");
+
+    #[cfg(target_os = "linux")]
+    const VERSION: &'static str = include_str!(r"../.git/refs/heads/master");
+
+    HttpResponse::Ok().body(VERSION)
+}
+
 #[actix_rt::test]
 async fn test_hello() {
     use actix_web::{body::Body, http::StatusCode, test, web::Bytes, App};
