@@ -23,7 +23,7 @@ mod migrations {
 
     pub(super) fn run(db_url: &str) -> Result<(), Box<dyn std::error::Error>> {
         let connection = pg::PgConnection::establish(&db_url)?;
-         // This will run the necessary migrations.
+        // This will run the necessary migrations.
         embedded_migrations::run(&connection)?;
         Ok(())
     }
@@ -32,7 +32,6 @@ mod migrations {
 #[actix_rt::main]
 #[cfg_attr(tarpaulin, skip)]
 async fn main() -> std::io::Result<()> {
-
     env_logger::from_env(Env::default().default_filter_or("info")).init();
     dotenv::dotenv().ok();
 
@@ -40,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
     // Run migrations.
     migrations::run(&connspec).expect("Failed to run migrations.");
-   
+
     let manager = ConnectionManager::<pg::PgConnection>::new(connspec);
 
     let pool =
