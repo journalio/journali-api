@@ -15,7 +15,7 @@ pub(crate) mod app_version {
     // This can't be used in an expression, due to
     // the way procedural macro's work.
     load_dotenv::try_load_dotenv!();
-    pub const VERSION: &'static str = env!("RUST_APP_VERSION");
+    pub const VERSION: &str = env!("RUST_APP_VERSION");
 }
 
 #[get("/hello/{name}")]

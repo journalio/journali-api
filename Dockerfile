@@ -3,7 +3,7 @@ WORKDIR /usr/src/journali-api
 COPY . .
 
 # Set version environment variable
-ENV RUST_APP_VERSION="development"
+ARG RUST_APP_VERSION="development"
 
 RUN cargo install --path .
 
