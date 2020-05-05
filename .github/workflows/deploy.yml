@@ -23,7 +23,7 @@ jobs:
     deliver:
         runs-on: self-hosted
         outputs:
-            image: ${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
+            image: ${{ env.REGISTRY_HOST }}/${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
         steps:
             -   uses: actions/checkout@v2
             -   name: Cache cargo registry
@@ -50,9 +50,7 @@ jobs:
                     password: ${{ github.token }}
                     registry: ${{ env.REGISTRY_HOST }}
                     tag_semver: true
-                    dockerfile: Dockerfile
-            -   name: Display full image name
-                run: echo ${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
+
     deploy:
         name: deploy to an environment
         runs-on: self-hosted
