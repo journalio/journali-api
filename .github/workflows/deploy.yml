@@ -68,7 +68,7 @@ jobs:
                 uses: allenevans/set-env@v1.0.0
                 with:
                     SERVICE: ${{ env.PRODUCTION_SERVICE }}
-                    NETWORK: ${{ env.STAGING_NETWORK }}
+                    NETWORK: ${{ env.PRODUCTION_NETWORK }}
                     URL: ${{ env.PRODUCTION_URL }}
                     ENV_NAME: production
 
