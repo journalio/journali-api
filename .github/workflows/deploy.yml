@@ -1,6 +1,7 @@
 name: deploy api
 
 on:
+    pull_request:
     push:
         branches:
             - master
@@ -8,60 +9,99 @@ on:
         types: [created]
 
 env:
+    DATABASE_URL: postgres://journali:journali@postgres:5432/journali
+    IMAGE_NAME: wesleyklop/journali-api/journali-api
     REGISTRY_HOST: docker.pkg.github.com
     STAGING_URL: http://staging.journali.nl
-    STAGING_API_SERVICE: journali-staging_api
-    STAGING_MIGRATOR_SERVICE: journali-staging_migrator
+    STAGING_SERVICE: journali-staging_api
+    STAGING_NETWORK: journali-staging_net
     PRODUCTION_URL: http://journali.nl
-    PRODUCTION_API_SERVICE: journali-production_api
-    PRODUCTION_MIGRATOR_SERVICE: journali-production_migrator
+    PRODUCTION_SERVICE: journali-production_api
+    PRODUCTION_NETWORK: journali-production_net
 
 jobs:
-    deliver-api:
+    deliver:
         runs-on: self-hosted
+        outputs:
+            image: ${{ env.REGISTRY_HOST }}/${{ env.IMAGE_NAME }}:${{ steps.publish.outputs.tag }}
         steps:
             -   uses: actions/checkout@v2
+            -   name: Cache cargo registry
+                uses: actions/cache@v1
+                with:
+                    path: ~/.cargo/registry
+                    key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            -   name: Cache cargo index
+                uses: actions/cache@v1
+                with:
+                    path: ~/.cargo/git
+                    key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            -   name: Cache cargo build
+                uses: actions/cache@v1
+                with:
+                    path: target
+                    key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             -   name: publish api docker image
+                id: publish
                 uses: elgohr/Publish-Docker-Github-Action@master
                 with:
-                    name: wesleyklop/journali-api/journali-api
+                    name: ${{ env.IMAGE_NAME }}
                     username: ${{ github.actor }}
                     password: ${{ github.token }}
                     registry: ${{ env.REGISTRY_HOST }}
                     tag_semver: true
-                    dockerfile: Api.Dockerfile
-    deliver-migrator:
+
+    deploy:
+        name: deploy to an environment
         runs-on: self-hosted
+        needs: [deliver]
         steps:
+            -   name: set environment variables if staging
+                if: ${{ github.event_name == 'pull_request' }}
+                uses: allenevans/set-env@v1.0.0
+                with:
+                    SERVICE: ${{ env.STAGING_SERVICE }}
+                    NETWORK: ${{ env.STAGING_NETWORK }}
+                    URL: ${{ env.STAGING_URL }}
+                    ENV_NAME: staging
+            -   name: set environment variables if production
+                if: ${{ github.event_name == 'release' }}
+                uses: allenevans/set-env@v1.0.0
+                with:
+                    SERVICE: ${{ env.PRODUCTION_SERVICE }}
+                    NETWORK: ${{ env.STAGING_NETWORK }}
+                    URL: ${{ env.PRODUCTION_URL }}
+                    ENV_NAME: production
+
+            -   name: login to registry
+                run: echo ${{ github.token }} | docker login ${{ env.REGISTRY_HOST }} -u ${{ github.actor }} --password-stdin
+            -   name: start deployment
+                uses: bobheadxi/deployments@master
+                id: deployment
+                with:
+                    step: start
+                    token: ${{ github.token }}
+                    env: ${{ env.ENV_NAME }}
+
+            # Migrate database part
             -   uses: actions/checkout@v2
-            -   name: publish migrator docker image
-                uses: elgohr/Publish-Docker-Github-Action@master
-                with:
-                    name: wesleyklop/journali-api/journali-migrator
-                    username: ${{ github.actor }}
-                    password: ${{ github.token }}
-                    registry: ${{ env.REGISTRY_HOST }}
-                    tag_semver: true
-                    dockerfile: Migrator.Dockerfile
-    deploy-staging:
-        name: deploy to staging
-        if: ${{ github.event_name == 'push' }}
-        runs-on: self-hosted
-        needs: [deliver-api, deliver-migrator]
-        steps:
-            -   name: login to registry
-                run: echo ${{ github.token }} | docker login ${{ env.REGISTRY_HOST }} -u ${{ github.actor }} --password-stdin
-            -   name: start deployment
-                uses: bobheadxi/deployments@master
-                id: deployment
-                with:
-                    step: start
-                    token: ${{ github.token }}
-                    env: staging
-            -   name: migrate database
-                run: docker service update --update-failure-action=pause --with-registry-auth --force ${{ env.STAGING_MIGRATOR_SERVICE }}
+            -   name: Migrate database
+                run: |
+                    docker run --rm \
+                      --network ${{ env.NETWORK }} \
+                      -e DATABASE_URL \
+                      -v ${{ github.workspace }}/migrations:/root/migrations \
+                    christophwurst/diesel-cli diesel migration run
+
+            # Deploy new api version
             -   name: deploy new api version
-                run: docker service update --update-failure-action=rollback --with-registry-auth --force ${{ env.STAGING_API_SERVICE }}
+                run: |
+                    docker service update \
+                      --update-failure-action=rollback \
+                      --with-registry-auth \
+                      --image ${{ needs.deliver.outputs.image }} \
+                    ${{ env.SERVICE }}
+
             -   name: update deployment status
                 uses: bobheadxi/deployments@master
                 if: always()
@@ -69,41 +109,7 @@ jobs:
                     step: finish
                     token: ${{ github.token }}
                     status: ${{ job.status }}
-                    env_url: ${{ env.STAGING_URL }}
-                    deployment_id: ${{ steps.deployment.outputs.deployment_id }}
-            -   name: logout from registry
-                if: always()
-                run: docker logout ${{ env.REGISTRY_HOST }}
-    deploy-production:
-        name: deploy production
-        if: ${{ github.event_name == 'release' }}
-        runs-on: self-hosted
-        needs: [deliver-api, deliver-migrator]
-        steps:
-            -   name: login to registry
-                run: echo ${{ github.token }} | docker login ${{ env.REGISTRY_HOST }} -u ${{ github.actor }} --password-stdin
-            -   name: start deployment
-                uses: bobheadxi/deployments@master
-                id: deployment
-                with:
-                    step: start
-                    token: ${{ github.token }}
-                    env: production
-            -   name: migrate database
-                run: docker service update --with-registry-auth --force ${{ env.STAGING_MIGRATOR_SERVICE }}
-            -   name: deploy new api version
-                run: docker service update --with-registry-auth --force ${{ env.PRODUCTION_API_SERVICE }}
-            -   name: rollback on failure
-                if: failure()
-                run: docker service rollback ${{ env.PRODUCTION_API_SERVICE }}
-            -   name: update deployment status
-                uses: bobheadxi/deployments@master
-                if: always()
-                with:
-                    step: finish
-                    token: ${{ github.token }}
-                    status: ${{ job.status }}
-                    env_url: ${{ env.PRODUCTION_URL }}
+                    env_url: ${{ env.URL }}
                     deployment_id: ${{ steps.deployment.outputs.deployment_id }}
             -   name: logout from registry
                 if: always()
