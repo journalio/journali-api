@@ -29,7 +29,11 @@ async fn main() -> std::io::Result<()> {
             .data(pool.clone())
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .service(web::scope("/api").service(journali_api::hello))
+            .service(
+                web::scope("/api")
+                    .service(journali_api::hello)
+                    .service(journali_api::version),
+            )
             .default_service(web::to(|| {
                 HttpResponse::NotFound().body(NOT_FOUND)
             }))

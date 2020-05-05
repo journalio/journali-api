@@ -6,6 +6,9 @@ on:
             - master
     pull_request:
 
+env:
+    RUST_APP_VERSION: ${{ github.sha }}
+ 
 jobs:
     check:
         name: check

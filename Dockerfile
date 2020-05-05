@@ -1,6 +1,10 @@
 FROM rust as builder
 WORKDIR /usr/src/journali-api
 COPY . .
+
+# Set version environment variable
+ARG RUST_APP_VERSION="development"
+
 RUN cargo install --path .
 
 FROM debian:buster-slim
