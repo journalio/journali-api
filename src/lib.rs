@@ -20,7 +20,7 @@ pub(crate) mod app_version {
 
 #[get("/hello/{name}")]
 pub async fn hello(data: web::Path<String>) -> impl Responder {
-    HttpResponse::Ok().body(format!("Hello sailor {}!", data.into_inner()))
+    HttpResponse::Ok().body(format!("Hello Captain {}!", data.into_inner()))
 }
 
 #[get("/version")]
@@ -42,6 +42,6 @@ async fn test_hello() {
 
     assert_eq!(
         resp.take_body().as_ref(),
-        Some(&Body::Bytes(Bytes::from("Hello sailor tester!")))
+        Some(&Body::Bytes(Bytes::from("Hello Captain tester!")))
     );
 }
