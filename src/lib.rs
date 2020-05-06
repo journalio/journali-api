@@ -28,6 +28,11 @@ pub async fn version() -> impl Responder {
     HttpResponse::Ok().body(app_version::VERSION)
 }
 
+#[get("/demo")]
+pub async fn demo() -> impl Responder {
+    HttpResponse::Ok().body("Dit is een demo!")
+}
+
 #[actix_rt::test]
 async fn test_hello() {
     use actix_web::{body::Body, http::StatusCode, test, web::Bytes, App};
