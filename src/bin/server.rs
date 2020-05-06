@@ -32,7 +32,8 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .service(journali_api::hello)
-                    .service(journali_api::version),
+                    .service(journali_api::version)
+                    .service(journali_api::demo),
             )
             .default_service(web::to(|| {
                 HttpResponse::NotFound().body(NOT_FOUND)
