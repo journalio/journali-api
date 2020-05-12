@@ -9,5 +9,5 @@ pub fn create(page: &NewPage, conn: &PgConnection) -> QueryResult<Page> {
 }
 
 pub fn get(id: Uuid, conn: &PgConnection) -> QueryResult<Page> {
-    pages::table.find(id).get_result::<Page>(&conn)
+    pages::table.filter(pages::id.eq(id)).get_result::<Page>(conn)
 }

@@ -12,6 +12,6 @@ pub struct NewPage {
 #[derive(Queryable, Serialize)]
 pub struct Page {
     pub id: Uuid,
-    pub item_type: i32,
+    pub item_type: i16,
     pub title: String,
 }
