@@ -1,6 +1,8 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE items
 (
-    id         uuid        NOT NULL,
+    id         uuid        NOT NULL DEFAULT uuid_generate_v4(),
     item_type  smallint    NOT NULL,
 
     created_at timestamptz NOT NULL DEFAULT now(),

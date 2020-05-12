@@ -8,6 +8,7 @@ use diesel::{
 };
 use env_logger::Env;
 
+use journali_api::controllers::pages_controller;
 use journali_api::DbPool;
 
 const NOT_FOUND: &str =
@@ -31,15 +32,10 @@ async fn main() -> std::io::Result<()> {
             .data(pool.clone())
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .service(
-                web::scope("/api")
-                    .service(journali_api::hello)
-                    .service(journali_api::version)
-                    .service(journali_api::demo),
-            )
             .default_service(web::to(|| {
                 HttpResponse::NotFound().body(NOT_FOUND)
             }))
+            .service(web::scope("/api").configure(pages_controller::register))
     })
     .bind("0.0.0.0:8000")?
     .run()
