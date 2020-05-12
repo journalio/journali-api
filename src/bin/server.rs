@@ -8,6 +8,8 @@ use diesel::{
 };
 use env_logger::Env;
 
+use journali_api::DbPool;
+
 const NOT_FOUND: &str =
     "{\"status\": \"Not Found\", \"Message\": \"Page not found\"}";
 
@@ -21,7 +23,7 @@ async fn main() -> std::io::Result<()> {
     // set up database connection pool
     let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
     let manager = ConnectionManager::<pg::PgConnection>::new(connspec);
-    let pool =
+    let pool: DbPool =
         r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
 
     HttpServer::new(move || {

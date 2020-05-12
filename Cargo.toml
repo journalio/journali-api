@@ -10,9 +10,11 @@ edition = "2018"
 actix-web = "2.0.0"
 actix-rt = "1.1.1"
 env_logger = "*"
-diesel = { version = "1.4.3", features = ["postgres", "uuidv07", "r2d2"] }
+diesel = { version = "1.4.4", features = ["postgres", "uuidv07", "r2d2"] }
 dotenv = "*"
 load-dotenv = "*"
+uuid = { version="*", features= ["serde"] }
+serde = "*"
 
 [features]
 # Treat warnings as a build error

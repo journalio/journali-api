@@ -1,9 +1,7 @@
-CREATE TYPE itemtype AS enum ('page');
-
 CREATE TABLE items
 (
     id         uuid        NOT NULL,
-    item_type  itemtype    NOT NULL,
+    item_type  smallint    NOT NULL,
 
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -14,7 +12,7 @@ CREATE TABLE items
 CREATE TABLE pages
 (
     id        uuid     NOT NULL,
-    item_type itemtype NOT NULL DEFAULT 'page' CHECK (item_type = 'page'), -- item type is always 100
+    item_type smallint NOT NULL DEFAULT 100 CHECK (item_type = 100), -- item type is always 100(page)
 
     title     text     NOT NULL,
 
