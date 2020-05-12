@@ -114,6 +114,14 @@ jobs:
                     status: ${{ job.status }}
                     env_url: ${{ env.URL }}
                     deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+            -   name: actions for Discord
+                if: always()
+                uses: Ilshidur/action-discord@0.0.2
+                env:
+                    DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+                with:
+                    args: Api deployed with ${{ job.status }} to ${{ env.ENV_NAME }} with image ${{ needs.deliver.outputs.image }}!
+
             -   name: logout from registry
                 if: always()
                 run: docker logout ${{ env.REGISTRY_HOST }}
