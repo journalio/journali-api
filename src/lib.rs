@@ -5,9 +5,20 @@
 //!
 //! This library exists for documentation purposes.
 
+#[macro_use]
+extern crate diesel;
+
 use actix_web::{get, web, HttpResponse, Responder};
 
-/// The soul purpose of this module is to be
+pub use database::DbPool;
+
+//#[allow(clippy::single_component_path_imports)]
+pub mod schema;
+
+mod database;
+pub mod items;
+
+/// The sole purpose of this module is to be
 /// able to reference the current commit hash.
 pub(crate) mod app_version {
     // We need to do this, orelse the environment
