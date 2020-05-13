@@ -5,7 +5,7 @@ CREATE TABLE todos
 
     title     text     NOT NULL,
 
-    PRIMARY KEY (id),
+    PRIMARY KEY (id, item_type),
     FOREIGN KEY (id, item_type) REFERENCES items (id, item_type) ON DELETE CASCADE
 );
 
@@ -17,6 +17,6 @@ CREATE TABLE todo_items
     title      text     NOT NULL,
     is_checked bool     NOT NULL DEFAULT FALSE,
 
-    PRIMARY KEY (id),
+    PRIMARY KEY (id, item_type),
     FOREIGN KEY (id, item_type) REFERENCES items (id, item_type) ON DELETE CASCADE
 );

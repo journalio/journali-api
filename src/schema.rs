@@ -18,7 +18,15 @@ table! {
 }
 
 table! {
-    todo_items (id) {
+    text_fields (id, item_type) {
+        id -> Uuid,
+        item_type -> Int2,
+        text -> Text,
+    }
+}
+
+table! {
+    todo_items (id, item_type) {
         id -> Uuid,
         item_type -> Int2,
         title -> Text,
@@ -27,11 +35,17 @@ table! {
 }
 
 table! {
-    todos (id) {
+    todos (id, item_type) {
         id -> Uuid,
         item_type -> Int2,
         title -> Text,
     }
 }
 
-allow_tables_to_appear_in_same_query!(items, pages, todo_items, todos,);
+allow_tables_to_appear_in_same_query!(
+    items,
+    pages,
+    text_fields,
+    todo_items,
+    todos,
+);

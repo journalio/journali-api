@@ -95,6 +95,6 @@ mod routes {
         exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
             .await
             .map(|page| HttpResponse::Ok().json(page))
-            .map_err(|e| HttpResponse::InternalServerError().finish().into())
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 }

@@ -10,7 +10,9 @@ use env_logger::Env;
 use serde::Serialize;
 
 use journali_api::{
-    items::{page::Page, todo::Todo, todo_item::TodoItem},
+    items::{
+        page::Page, text_field::TextField, todo::Todo, todo_item::TodoItem,
+    },
     DbPool,
 };
 
@@ -20,6 +22,13 @@ struct ErrMsg {
     message: String,
 }
 
+fn create_pool() -> DbPool {
+    let conn_spec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+    let manager = ConnectionManager::<pg::PgConnection>::new(conn_spec);
+
+    r2d2::Pool::builder().build(manager).expect("Failed to create pool.")
+}
+
 #[actix_rt::main]
 #[cfg_attr(tarpaulin, skip)]
 async fn main() -> std::io::Result<()> {
@@ -27,15 +36,9 @@ async fn main() -> std::io::Result<()> {
 
     dotenv::dotenv().ok();
 
-    // set up database connection pool
-    let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
-    let manager = ConnectionManager::<pg::PgConnection>::new(connspec);
-    let pool: DbPool =
-        r2d2::Pool::builder().build(manager).expect("Failed to create pool.");
-
     HttpServer::new(move || {
         App::new()
-            .data(pool.clone())
+            .data(create_pool())
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .default_service(web::to(|| {
@@ -48,7 +51,8 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api")
                     .configure(Page::routes)
                     .configure(Todo::routes)
-                    .configure(TodoItem::routes),
+                    .configure(TodoItem::routes)
+                    .configure(TextField::routes),
             )
     })
     .bind("0.0.0.0:8000")?

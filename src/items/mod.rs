@@ -16,6 +16,7 @@ mod reex_diesel {
 
 pub mod item;
 pub mod page;
+pub mod text_field;
 pub mod todo;
 pub mod todo_item;
 
@@ -47,4 +48,5 @@ pub enum ItemTypeNames {
     Page = 100,
     Todo = 200,
     TodoItem = 210,
+    TextField = 300,
 }
