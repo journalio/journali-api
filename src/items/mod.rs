@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+use item::Item;
+
 /// Reexport commonly used diesel
 /// namespaces
 mod reex_diesel {
@@ -8,8 +10,6 @@ mod reex_diesel {
 
 pub mod item;
 pub mod page;
-
-use item::Item;
 
 pub type ItemType = i16;
 

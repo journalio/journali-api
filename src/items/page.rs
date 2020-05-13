@@ -1,11 +1,10 @@
-use super::{ItemLike, ItemType};
-
-use crate::schema::pages;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::schema::pages;
+
 use super::reex_diesel::*;
+use super::{ItemLike, ItemType};
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Page {
@@ -57,12 +56,12 @@ impl Page {
 }
 
 mod routes {
-    use super::{NewPage, Page};
+    use actix_web::{get, post, web, Error, HttpResponse};
+    use uuid::Uuid;
+
     use crate::{database::exec_on_pool, DbPool};
 
-    use actix_web::{get, post, web, Error, HttpResponse};
-
-    use uuid::Uuid;
+    use super::{NewPage, Page};
 
     #[post("/pages")]
     pub async fn create_page(

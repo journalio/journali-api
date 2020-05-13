@@ -8,7 +8,7 @@ use diesel::{
 };
 use env_logger::Env;
 
-use journali_api::{item::page::Page, DbPool};
+use journali_api::{items::page::Page, DbPool};
 
 const NOT_FOUND: &str =
     "{\"status\": \"Not Found\", \"Message\": \"Page not found\"}";

@@ -16,7 +16,7 @@ pub use database::DbPool;
 pub mod schema;
 
 mod database;
-pub mod item;
+pub mod items;
 
 /// The sole purpose of this module is to be
 /// able to reference the current commit hash.

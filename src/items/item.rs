@@ -1,10 +1,10 @@
-use super::{ItemLike, ItemType};
-use crate::schema::items;
-
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use crate::schema::items;
+
 use super::reex_diesel::*;
-use chrono::{DateTime, Utc};
+use super::{ItemLike, ItemType};
 
 #[derive(Insertable, Queryable, Copy, Clone)]
 pub struct Item {
