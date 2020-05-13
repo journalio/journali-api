@@ -1,3 +1,9 @@
+//! This module contains all item definitions used by the application
+//!
+//! The several items used are listed below:
+//! - [`Item`](item/struct.Item.html)
+//! - [`Page`](page/struct.Page.html)
+
 use uuid::Uuid;
 
 use item::Item;
