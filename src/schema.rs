@@ -15,4 +15,12 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(items, pages,);
+table! {
+    users (id) {
+        id -> Uuid,
+        full_name -> Text,
+        password_hash -> Text,
+    }
+}
+
+allow_tables_to_appear_in_same_query!(items, pages, users,);

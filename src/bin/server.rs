@@ -8,7 +8,7 @@ use diesel::{
 };
 use env_logger::Env;
 
-use journali_api::{items::page::Page, DbPool};
+use journali_api::{items::page::Page, users::User, DbPool};
 
 const NOT_FOUND: &str =
     "{\"status\": \"Not Found\", \"Message\": \"Page not found\"}";
@@ -34,7 +34,11 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::to(|| {
                 HttpResponse::NotFound().body(NOT_FOUND)
             }))
-            .service(web::scope("/api").configure(Page::routes))
+            .service(
+                web::scope("/api")
+                    .configure(Page::routes)
+                    .configure(User::routes),
+            )
     })
     .bind("0.0.0.0:8000")?
     .run()

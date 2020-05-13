@@ -5,9 +5,6 @@
 //!
 //! This library exists for documentation purposes.
 
-#[macro_use]
-extern crate diesel;
-
 use actix_web::{get, web, HttpResponse, Responder};
 
 pub use database::DbPool;
@@ -17,6 +14,7 @@ pub mod schema;
 
 mod database;
 pub mod items;
+pub mod users;
 
 /// The sole purpose of this module is to be
 /// able to reference the current commit hash.

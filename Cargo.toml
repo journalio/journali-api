@@ -16,6 +16,8 @@ load-dotenv = "*"
 uuid = { version="*", features= ["serde", "v4"] }
 serde = "*"
 chrono = "*"
+jwt = "*"
+crypto = "*"
 
 [features]
 # Treat warnings as a build error
