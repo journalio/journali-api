@@ -11,7 +11,6 @@ use super::{ItemLike, ItemType};
 pub struct Todo {
     pub id: Uuid,
     pub item_type: i16,
-    pub page_id: Uuid,
     pub title: String,
 }
 
@@ -21,13 +20,21 @@ pub struct NewTodo {
     pub page_id: Uuid,
 }
 
-impl ItemLike for Todo {
+impl ItemLike for NewTodo {
     fn id(&self) -> Uuid {
-        self.id
+        Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
         ItemTypeNames::Todo as i16
+    }
+
+    fn parent_id(&self) -> Option<Uuid> {
+        Some(self.page_id)
+    }
+
+    fn parent_type(&self) -> Option<i16> {
+        Some(ItemTypeNames::Page as i16)
     }
 }
 
@@ -40,14 +47,14 @@ impl Todo {
         new_todo: &NewTodo,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
+        let item = new_todo.as_new_item();
         let todo = Self {
-            id: Uuid::new_v4(),
-            item_type: ItemTypeNames::Todo as i16,
-            page_id: new_todo.page_id,
+            id: item.id,
+            item_type: item.item_type,
             title: new_todo.title.clone(),
         };
 
-        todo.as_item().create(conn)?;
+        item.create(conn)?;
         diesel::insert_into(todos::table).values(&todo).get_result(conn)
     }
 }

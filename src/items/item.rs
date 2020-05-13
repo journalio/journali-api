@@ -9,7 +9,9 @@ use super::{ItemLike, ItemType};
 #[derive(Insertable, Queryable, Copy, Clone)]
 pub struct Item {
     pub(crate) id: Uuid,
-    pub(crate) item_type: i16,
+    pub(crate) item_type: ItemType,
+    pub(crate) parent_id: Option<Uuid>,
+    pub(crate) parent_type: Option<ItemType>,
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) updated_at: DateTime<Utc>,
 }
@@ -23,6 +25,14 @@ impl ItemLike for Item {
         self.item_type
     }
 
+    fn parent_id(&self) -> Option<Uuid> {
+        self.parent_id
+    }
+
+    fn parent_type(&self) -> Option<ItemType> {
+        self.parent_type
+    }
+
     fn as_item(&self) -> Item {
         *self
     }
@@ -33,6 +43,8 @@ impl Default for Item {
         Item {
             id: Uuid::default(),
             item_type: 0,
+            parent_id: None,
+            parent_type: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

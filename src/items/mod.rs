@@ -24,13 +24,21 @@ pub type ItemType = i16;
 pub trait ItemLike {
     fn id(&self) -> Uuid;
     fn item_type(&self) -> ItemType;
+    fn parent_id(&self) -> Option<Uuid>;
+    fn parent_type(&self) -> Option<ItemType>;
 
     fn as_item(&self) -> Item {
         Item {
             id: self.id(),
             item_type: self.item_type(),
+            parent_id: self.parent_id(),
+            parent_type: self.parent_type(),
             ..Default::default()
         }
+    }
+
+    fn as_new_item(&self) -> Item {
+        Item { id: Uuid::new_v4(), ..self.as_item() }
     }
 }
 

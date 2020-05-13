@@ -10,8 +10,7 @@ use super::{ItemLike, ItemType};
 #[derive(Queryable, Serialize, Insertable)]
 pub struct TodoItem {
     pub id: Uuid,
-    pub item_type: i16,
-    pub todo_id: Uuid,
+    pub item_type: ItemType,
     pub title: String,
     pub is_checked: bool,
 }
@@ -22,13 +21,21 @@ pub struct NewTodoItem {
     pub todo_id: Uuid,
 }
 
-impl ItemLike for TodoItem {
+impl ItemLike for NewTodoItem {
     fn id(&self) -> Uuid {
-        self.id
+        Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
         ItemTypeNames::TodoItem as i16
+    }
+
+    fn parent_id(&self) -> Option<Uuid> {
+        Some(self.todo_id)
+    }
+
+    fn parent_type(&self) -> Option<i16> {
+        Some(ItemTypeNames::Todo as i16)
     }
 }
 
@@ -41,15 +48,15 @@ impl TodoItem {
         new_todo: &NewTodoItem,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
+        let item = new_todo.as_new_item();
         let todo = Self {
-            id: Uuid::new_v4(),
-            item_type: ItemTypeNames::TodoItem as i16,
-            todo_id: new_todo.todo_id,
+            id: item.id,
+            item_type: item.item_type,
             title: new_todo.title.clone(),
             is_checked: false,
         };
 
-        todo.as_item().create(conn)?;
+        item.create(conn)?;
         diesel::insert_into(todo_items::table).values(&todo).get_result(conn)
     }
 }

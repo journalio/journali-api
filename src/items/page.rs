@@ -10,7 +10,7 @@ use super::{ItemLike, ItemType};
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Page {
     pub id: Uuid,
-    pub item_type: i16,
+    pub item_type: ItemType,
     pub title: String,
 }
 
@@ -19,13 +19,21 @@ pub struct NewPage {
     pub title: String,
 }
 
-impl ItemLike for Page {
+impl ItemLike for NewPage {
     fn id(&self) -> Uuid {
-        self.id
+        Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
         100
+    }
+
+    fn parent_id(&self) -> Option<Uuid> {
+        None
+    }
+
+    fn parent_type(&self) -> Option<i16> {
+        None
     }
 }
 
@@ -41,13 +49,14 @@ impl Page {
         new_page: &NewPage,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
+        let item = new_page.as_new_item();
         let page = Self {
-            id: Uuid::new_v4(),
-            item_type: ItemTypeNames::Page as i16,
+            id: item.id,
+            item_type: item.item_type,
             title: new_page.title.clone(),
         };
 
-        page.as_item().create(conn)?;
+        item.create(conn)?;
         diesel::insert_into(pages::table).values(&page).get_result(conn)
     }
 
