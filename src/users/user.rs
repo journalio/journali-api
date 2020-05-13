@@ -18,14 +18,23 @@ impl User {
         cfg.service(routes::register);
     }
 }
-#[derive(Insertable, Serialize, Deserialize)]
+#[derive(Insertable, Serialize, Deserialize, Clone)]
 #[table_name = "users"]
 pub struct NewUser {
     username: String,
     password: String,
 }
 
-#[derive(Serialize, Deserialize)]
+impl NewUser {
+    fn hash_password(&self) -> Self {
+        Self {
+            password: crate::utils::hash_password(&self.password),
+            username: self.username.clone()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LoginUser {
     username: String,
     password: String,
@@ -34,6 +43,8 @@ pub struct LoginUser {
 impl User {
     // TODO: Hashing
     fn create(conn: &PgConnection, newuser: &NewUser) -> QueryResult<Self> {
+        let newuser = newuser.hash_password();
+
         diesel::insert_into(users::table).values(newuser).get_result(conn)
     }
 
@@ -48,12 +59,22 @@ impl User {
     }
 }
 
+#[derive(Debug)]
+struct InvalidPassword;
+
 impl User {
     fn into_jwt(self) -> String {
         use crate::utils::jwt::Jwt;
         use chrono::Duration;
 
         Jwt::new("journali.nl", Duration::days(30), self.id).tokenize()
+    }
+
+    fn verify_password(self, user: LoginUser) -> Result<Self, InvalidPassword> {
+        match bcrypt::verify(user.password, &self.password) {
+            Ok(true) => Ok(self),
+            _ => Err(InvalidPassword)
+        }
     }
 }
 
@@ -73,11 +94,21 @@ mod routes {
         pool: web::Data<DbPool>,
         user: web::Json<LoginUser>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| User::find_user(conn, &user))
+        let cloned_user = user.clone();
+        let found_user = exec_on_pool(pool, move |conn| User::find_user(conn, &cloned_user))
             .await
+            .map_err(|_| HttpResponse::InternalServerError().finish())?;
+
+        found_user.verify_password(user.into_inner())
             .map(User::into_jwt)
-            .map(|jwt| HttpResponse::Ok().json(jwt))
             .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .map(|jwt| HttpResponse::Ok().json(jwt))
+
+            // .map(|found_user| {
+            //     found_user.verify_password(user.into_inner()).map(User::into_jwt)
+            // })
+            // .map(|jwt| HttpResponse::Ok().json(jwt))
+            // .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 
     #[post("/register")]
