@@ -29,7 +29,7 @@ impl NewUser {
     fn hash_password(&self) -> Self {
         Self {
             password: crate::utils::hash_password(&self.password),
-            username: self.username.clone()
+            username: self.username.clone(),
         }
     }
 }
@@ -48,14 +48,18 @@ impl User {
         diesel::insert_into(users::table).values(newuser).get_result(conn)
     }
 
-    fn find_user(conn: &PgConnection, user: &LoginUser) -> QueryResult<Self> {
+    fn find_user(
+        conn: &PgConnection,
+        loginuser: &LoginUser,
+    ) -> QueryResult<Self> {
         users::table
             .filter(
-                users::username
-                    .eq(&user.username)
-                    .and(users::password.eq(&user.password)),
+                users::username.eq(&loginuser.username), //.filter(users::password.eq(&user.password)),
             )
-            .get_result(conn)
+            .load::<User>(conn)?
+            .into_iter()
+            .find(move |user| user.verify_password(loginuser))
+            .ok_or_else(|| diesel::result::Error::NotFound)
     }
 }
 
@@ -70,10 +74,10 @@ impl User {
         Jwt::new("journali.nl", Duration::days(30), self.id).tokenize()
     }
 
-    fn verify_password(self, user: LoginUser) -> Result<Self, InvalidPassword> {
-        match bcrypt::verify(user.password, &self.password) {
-            Ok(true) => Ok(self),
-            _ => Err(InvalidPassword)
+    fn verify_password(&self, user: &LoginUser) -> bool {
+        match bcrypt::verify(&user.password, &self.password) {
+            Ok(true) => true,
+            _ => false,
         }
     }
 }
@@ -95,20 +99,12 @@ mod routes {
         user: web::Json<LoginUser>,
     ) -> Result<HttpResponse, Error> {
         let cloned_user = user.clone();
-        let found_user = exec_on_pool(pool, move |conn| User::find_user(conn, &cloned_user))
-            .await
-            .map_err(|_| HttpResponse::InternalServerError().finish())?;
 
-        found_user.verify_password(user.into_inner())
+        exec_on_pool(pool, move |conn| User::find_user(conn, &cloned_user))
+            .await
             .map(User::into_jwt)
             .map_err(|_| HttpResponse::InternalServerError().finish().into())
             .map(|jwt| HttpResponse::Ok().json(jwt))
-
-            // .map(|found_user| {
-            //     found_user.verify_password(user.into_inner()).map(User::into_jwt)
-            // })
-            // .map(|jwt| HttpResponse::Ok().json(jwt))
-            // .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 
     #[post("/register")]

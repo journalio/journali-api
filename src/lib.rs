@@ -5,6 +5,9 @@
 //!
 //! This library exists for documentation purposes.
 
+#[macro_use]
+extern crate diesel;
+
 use actix_web::{get, web, HttpResponse, Responder};
 
 pub use database::DbPool;
