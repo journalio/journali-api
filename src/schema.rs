@@ -18,8 +18,8 @@ table! {
 table! {
     users (id) {
         id -> Uuid,
-        full_name -> Text,
-        password_hash -> Text,
+        username -> Text,
+        password -> Text,
     }
 }
 

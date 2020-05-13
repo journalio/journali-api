@@ -9,6 +9,8 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 pub use database::DbPool;
 
+mod utils;
+
 //#[allow(clippy::single_component_path_imports)]
 pub mod schema;
 

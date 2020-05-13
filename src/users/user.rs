@@ -3,22 +3,13 @@ use uuid::Uuid;
 
 use diesel::{pg::PgConnection, prelude::*, QueryResult};
 
-use jwt::{
-    Header,
-    Registered,
-    Token,
-};
-
-use crypto::sha2::Sha256;
-
 use crate::schema::users;
-
 
 #[derive(Queryable, Serialize, Insertable, Debug)]
 pub struct User {
     pub id: Uuid,
-    pub full_name: String,
-    pub password_hash: String,
+    pub username: String,
+    pub password: String,
 }
 
 impl User {
@@ -30,14 +21,14 @@ impl User {
 #[derive(Insertable, Serialize, Deserialize)]
 #[table_name = "users"]
 pub struct NewUser {
-    full_name: String,
-    password_hash: String,
+    username: String,
+    password: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct LoginUser {
-    full_name: String,
-    password_hash: String,
+    username: String,
+    password: String,
 }
 
 impl User {
@@ -49,23 +40,20 @@ impl User {
     fn find_user(conn: &PgConnection, user: &LoginUser) -> QueryResult<Self> {
         users::table
             .filter(
-                users::full_name
-                    .eq(&user.full_name)
-                    .and(users::password_hash.eq(&user.password_hash)),
+                users::username
+                    .eq(&user.username)
+                    .and(users::password.eq(&user.password)),
             )
             .get_result(conn)
     }
 }
 
 impl User {
-    fn to_jwt(self) -> Token {
-        let claims = Registered {
-            sub: Some(self.password_hash),
-            ..Default::default()
-        };
+    fn into_jwt(self) -> String {
+        use crate::utils::jwt::Jwt;
+        use chrono::Duration;
 
-        let token = Token::new(header, claims);
-        let jwt = token.signed(AUTH_SECRET.as_bytes(), Sha256::new()).unwrap();
+        Jwt::new("journali.nl", Duration::days(30), self.id).tokenize()
     }
 }
 
@@ -85,14 +73,11 @@ mod routes {
         pool: web::Data<DbPool>,
         user: web::Json<LoginUser>,
     ) -> Result<HttpResponse, Error> {
-        let user = exec_on_pool(pool, move |conn| User::find_user(conn, &user))
+        exec_on_pool(pool, move |conn| User::find_user(conn, &user))
             .await
-            .map_err(|_| HttpResponse::InternalServerError().finish())?;
-        
-        // MOET JWT HIERZO?!!!!
-        let token = user.to_jwt();
-
-        Ok(HttpResponse::Ok().json(token))
+            .map(User::into_jwt)
+            .map(|jwt| HttpResponse::Ok().json(jwt))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 
     #[post("/register")]
@@ -100,10 +85,9 @@ mod routes {
         pool: web::Data<DbPool>,
         new_user: web::Json<NewUser>,
     ) -> Result<HttpResponse, Error> {
-        let user =
-            exec_on_pool(pool, move |conn| User::create(conn, &new_user))
-                .await
-                .map_err(|_| HttpResponse::InternalServerError().finish())?;
-        Ok(HttpResponse::Ok().json(user))
+        exec_on_pool(pool, move |conn| User::create(conn, &new_user))
+            .await
+            .map(|user| HttpResponse::Ok().json(user))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 }

@@ -15,9 +15,8 @@ dotenv = "*"
 load-dotenv = "*"
 uuid = { version="*", features= ["serde", "v4"] }
 serde = "*"
-chrono = "*"
-jwt = "*"
-crypto = "*"
+chrono = {version = "*", features = ["serde"]}
+jsonwebtoken = "7.1.0"
 
 [features]
 # Treat warnings as a build error
