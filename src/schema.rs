@@ -37,9 +37,4 @@ table! {
 joinable!(todo_items -> todos (todo_id));
 joinable!(todos -> pages (page_id));
 
-allow_tables_to_appear_in_same_query!(
-    items,
-    pages,
-    todo_items,
-    todos,
-);
+allow_tables_to_appear_in_same_query!(items, pages, todo_items, todos,);
