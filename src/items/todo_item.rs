@@ -73,11 +73,9 @@ mod routes {
         pool: web::Data<DbPool>,
         form: web::Json<NewTodoItem>,
     ) -> Result<HttpResponse, Error> {
-        let todo: TodoItem =
-            exec_on_pool(pool, move |conn| TodoItem::create(&form, &conn))
-                .await
-                .map_err(|_| HttpResponse::InternalServerError().finish())?;
-
-        Ok(HttpResponse::Ok().json(todo))
+        exec_on_pool(pool, move |conn| TodoItem::create(&form, &conn))
+            .await
+            .map(|todo_item| HttpResponse::Ok().json(todo_item))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 }

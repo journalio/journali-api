@@ -81,12 +81,10 @@ mod routes {
         pool: web::Data<DbPool>,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        let page: Page =
-            exec_on_pool(pool, move |conn| Page::create(&form, &conn))
-                .await
-                .map_err(|_| HttpResponse::InternalServerError().finish())?;
-
-        Ok(HttpResponse::Ok().json(page))
+        exec_on_pool(pool, move |conn| Page::create(&form, &conn))
+            .await
+            .map(|page| HttpResponse::Ok().json(page))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 
     #[get("/pages/{id}")]
@@ -94,13 +92,9 @@ mod routes {
         pool: web::Data<DbPool>,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        let page = exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
+        exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
             .await
-            .map_err(|e| {
-                eprintln!("{}", e);
-                HttpResponse::InternalServerError().finish()
-            })?;
-
-        Ok(HttpResponse::Ok().json(page))
+            .map(|page| HttpResponse::Ok().json(page))
+            .map_err(|e| HttpResponse::InternalServerError().finish().into())
     }
 }
