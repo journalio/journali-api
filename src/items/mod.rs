@@ -17,6 +17,7 @@ mod reex_diesel {
 pub mod item;
 pub mod page;
 pub mod todo;
+pub mod todo_item;
 
 pub type ItemType = i16;
 

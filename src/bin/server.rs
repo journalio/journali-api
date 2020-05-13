@@ -9,8 +9,10 @@ use diesel::{
 use env_logger::Env;
 use serde::Serialize;
 
-use journali_api::items::todo::Todo;
-use journali_api::{items::page::Page, DbPool};
+use journali_api::{
+    items::{page::Page, todo::Todo, todo_item::TodoItem},
+    DbPool,
+};
 
 #[derive(Serialize)]
 struct ErrMsg {
@@ -45,7 +47,8 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .configure(Page::routes)
-                    .configure(Todo::routes),
+                    .configure(Todo::routes)
+                    .configure(TodoItem::routes),
             )
     })
     .bind("0.0.0.0:8000")?
