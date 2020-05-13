@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::ItemTypeNames;
 use crate::schema::pages;
 
 use super::reex_diesel::*;
@@ -42,7 +43,7 @@ impl Page {
     ) -> QueryResult<Self> {
         let page = Self {
             id: Uuid::new_v4(),
-            item_type: 100,
+            item_type: ItemTypeNames::Page as i16,
             title: new_page.title.clone(),
         };
 
@@ -51,7 +52,10 @@ impl Page {
     }
 
     pub(crate) fn get(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table.filter(pages::id.eq(id)).get_result(conn)
+        pages::table
+            .filter(pages::id.eq(id))
+            .filter(pages::item_type.eq(ItemTypeNames::Page as i16))
+            .get_result(conn)
     }
 }
 

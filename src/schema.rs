@@ -8,11 +8,38 @@ table! {
 }
 
 table! {
-    pages (id, item_type) {
+    pages (id) {
         id -> Uuid,
         item_type -> Int2,
         title -> Text,
     }
 }
 
-allow_tables_to_appear_in_same_query!(items, pages,);
+table! {
+    todo_items (id) {
+        id -> Uuid,
+        item_type -> Int2,
+        todo_id -> Uuid,
+        title -> Text,
+        is_checked -> Bool,
+    }
+}
+
+table! {
+    todos (id) {
+        id -> Uuid,
+        item_type -> Int2,
+        page_id -> Uuid,
+        title -> Text,
+    }
+}
+
+joinable!(todo_items -> todos (todo_id));
+joinable!(todos -> pages (page_id));
+
+allow_tables_to_appear_in_same_query!(
+    items,
+    pages,
+    todo_items,
+    todos,
+);

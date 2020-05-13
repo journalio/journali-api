@@ -18,6 +18,6 @@ CREATE TABLE pages
 
     title     text     NOT NULL,
 
-    PRIMARY KEY (id, item_type),
-    FOREIGN KEY (id, item_type) REFERENCES items (id, item_type)
+    PRIMARY KEY (id),
+    FOREIGN KEY (id, item_type) REFERENCES items (id, item_type) ON DELETE CASCADE
 )

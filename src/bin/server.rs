@@ -7,11 +7,16 @@ use diesel::{
     r2d2::{self, ConnectionManager},
 };
 use env_logger::Env;
+use serde::Serialize;
 
+use journali_api::items::todo::Todo;
 use journali_api::{items::page::Page, DbPool};
 
-const NOT_FOUND: &str =
-    "{\"status\": \"Not Found\", \"Message\": \"Page not found\"}";
+#[derive(Serialize)]
+struct ErrMsg {
+    status: String,
+    message: String,
+}
 
 #[actix_rt::main]
 #[cfg_attr(tarpaulin, skip)]
@@ -32,9 +37,16 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .default_service(web::to(|| {
-                HttpResponse::NotFound().body(NOT_FOUND)
+                HttpResponse::NotFound().json(ErrMsg {
+                    status: "404".to_string(),
+                    message: "Page not found.".to_string(),
+                })
             }))
-            .service(web::scope("/api").configure(Page::routes))
+            .service(
+                web::scope("/api")
+                    .configure(Page::routes)
+                    .configure(Todo::routes),
+            )
     })
     .bind("0.0.0.0:8000")?
     .run()

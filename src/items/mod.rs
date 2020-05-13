@@ -16,6 +16,7 @@ mod reex_diesel {
 
 pub mod item;
 pub mod page;
+pub mod todo;
 
 pub type ItemType = i16;
 
@@ -30,4 +31,11 @@ pub trait ItemLike {
             ..Default::default()
         }
     }
+}
+
+#[repr(i16)]
+pub enum ItemTypeNames {
+    Page = 100,
+    Todo = 200,
+    TodoItem = 210,
 }
