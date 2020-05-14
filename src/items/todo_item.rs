@@ -64,6 +64,7 @@ impl TodoItem {
 mod routes {
     use actix_web::{post, web, Error, HttpResponse};
 
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::{NewTodoItem, TodoItem};
@@ -75,7 +76,6 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, move |conn| TodoItem::create(&form, &conn))
             .await
-            .map(|todo_item| HttpResponse::Ok().json(todo_item))
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .into_response()
     }
 }

@@ -64,6 +64,7 @@ impl TextField {
 mod routes {
     use actix_web::{post, web, Error, HttpResponse};
 
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::{NewTextField, TextField};
@@ -75,7 +76,6 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, move |conn| TextField::create(&form, &conn))
             .await
-            .map(|text_field| HttpResponse::Ok().json(text_field))
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .into_response()
     }
 }

@@ -72,6 +72,7 @@ mod routes {
     use actix_web::{get, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::{NewPage, Page};
@@ -83,8 +84,7 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, move |conn| Page::create(&form, &conn))
             .await
-            .map(|page| HttpResponse::Ok().json(page))
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .into_response()
     }
 
     #[get("/pages/{id}")]
@@ -94,7 +94,6 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
             .await
-            .map(|page| HttpResponse::Ok().json(page))
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .into_response()
     }
 }
