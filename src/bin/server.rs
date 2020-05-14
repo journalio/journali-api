@@ -2,6 +2,7 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 use actix_web::{middleware::Logger, web, App, HttpResponse, HttpServer};
+use actix_web_httpauth::middleware::HttpAuthentication;
 use diesel::{
     pg,
     r2d2::{self, ConnectionManager},
@@ -15,6 +16,7 @@ use journali_api::{
         todo_item::TodoItem,
     },
     users::User,
+    utils::validator,
     DbPool,
 };
 
@@ -39,6 +41,7 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
 
     HttpServer::new(move || {
+        let auth = HttpAuthentication::bearer(validator);
         App::new()
             .data(create_pool())
             .wrap(Logger::default())
@@ -51,9 +54,10 @@ async fn main() -> std::io::Result<()> {
             }))
             .service(
                 web::scope("/api")
+                    .wrap(auth)
                     .configure(Item::routes)
-                    .configure(Page::routes)
                     .configure(User::routes)
+                    .configure(Page::routes)
                     .configure(Todo::routes)
                     .configure(TodoItem::routes)
                     .configure(TextField::routes),

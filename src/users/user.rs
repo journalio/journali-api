@@ -60,6 +60,10 @@ impl User {
             .find(move |user| user.verify_password(loginuser))
             .ok_or_else(|| diesel::result::Error::NotFound)
     }
+
+    pub fn find_by_id(conn: &PgConnection, id: Uuid) -> QueryResult<Self> {
+        users::table.filter(users::id.eq(id)).first::<User>(conn)
+    }
 }
 
 #[derive(Debug)]
@@ -70,7 +74,8 @@ impl User {
         use crate::utils::jwt::Jwt;
         use chrono::Duration;
 
-        Jwt::new("journali.nl", Duration::days(30), self.id).tokenize()
+        Jwt::new("journali.nl".to_string(), Duration::days(30), self.id)
+            .tokenize()
     }
 
     fn verify_password(&self, user: &LoginUser) -> bool {

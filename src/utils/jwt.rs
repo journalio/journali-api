@@ -1,24 +1,30 @@
 use chrono::{DateTime, Duration, Utc};
+use jsonwebtoken::errors::Error;
 use uuid::Uuid;
 
 #[derive(serde::Serialize)]
 pub struct Token {
     token: String,
 }
-#[derive(serde::Serialize)]
-pub struct Jwt<S = &'static str> {
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Jwt {
     /// Issuer (journali.nl)
-    iss: S,
+    iss: String,
 
     /// expiration time
     exp: DateTime<Utc>,
 
     /// subject
-    sub: Uuid,
+    pub sub: Uuid,
+}
+
+fn get_secret() -> String {
+    std::env::var("SECRET").expect("SECRET")
 }
 
 impl Jwt {
-    pub fn new(iss: &'static str, duration: Duration, sub: Uuid) -> Self {
+    pub fn new(iss: String, duration: Duration, sub: Uuid) -> Self {
         let now = Utc::now();
         let exp = now + duration;
 
@@ -28,7 +34,7 @@ impl Jwt {
     pub fn tokenize(self) -> Token {
         use jsonwebtoken::{encode, EncodingKey, Header};
 
-        let secret = std::env::var("SECRET").expect("SECRET");
+        let secret = get_secret();
         let token = encode(
             &Header::default(),
             &self,
@@ -37,5 +43,18 @@ impl Jwt {
         .unwrap();
 
         Token { token }
+    }
+
+    pub fn decrypt(jwt: &str) -> Result<Jwt, Error> {
+        use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+
+        let secret = get_secret();
+
+        decode::<Jwt>(
+            jwt,
+            &DecodingKey::from_secret(secret.as_ref()),
+            &Validation::new(Algorithm::HS256),
+        )
+        .map(|token| token.claims)
     }
 }
