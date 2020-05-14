@@ -86,6 +86,7 @@ mod routes {
     use uuid::Uuid;
 
     use crate::items::item::UpdateParentRequest;
+    use crate::items::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::Item;
@@ -100,7 +101,6 @@ mod routes {
             Item::update_parent(&id.into_inner(), &form, &conn)
         })
         .await
-        .map(|item| HttpResponse::Ok().json(item))
-        .map_err(|_| HttpResponse::InternalServerError().finish().into())
+        .into_response()
     }
 }
