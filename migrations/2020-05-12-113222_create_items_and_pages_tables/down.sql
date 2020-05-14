@@ -1,2 +1,1 @@
-DROP TABLE pages;
-DROP TABLE items;
+DROP TABLE pages, items;

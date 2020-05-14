@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::ItemTypeNames;
 use crate::schema::pages;
 
 use super::reex_diesel::*;
@@ -9,7 +10,7 @@ use super::{ItemLike, ItemType};
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Page {
     pub id: Uuid,
-    pub item_type: i16,
+    pub item_type: ItemType,
     pub title: String,
 }
 
@@ -18,13 +19,21 @@ pub struct NewPage {
     pub title: String,
 }
 
-impl ItemLike for Page {
+impl ItemLike for NewPage {
     fn id(&self) -> Uuid {
-        self.id
+        Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
         100
+    }
+
+    fn parent_id(&self) -> Option<Uuid> {
+        None
+    }
+
+    fn parent_type(&self) -> Option<i16> {
+        None
     }
 }
 
@@ -40,18 +49,22 @@ impl Page {
         new_page: &NewPage,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
+        let item = new_page.as_new_item();
         let page = Self {
-            id: Uuid::new_v4(),
-            item_type: 100,
+            id: item.id,
+            item_type: item.item_type,
             title: new_page.title.clone(),
         };
 
-        page.as_item().create(conn)?;
+        item.create(conn)?;
         diesel::insert_into(pages::table).values(&page).get_result(conn)
     }
 
     pub(crate) fn get(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table.filter(pages::id.eq(id)).get_result(conn)
+        pages::table
+            .filter(pages::id.eq(id))
+            .filter(pages::item_type.eq(ItemTypeNames::Page as i16))
+            .get_result(conn)
     }
 }
 
@@ -68,12 +81,10 @@ mod routes {
         pool: web::Data<DbPool>,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        let page: Page =
-            exec_on_pool(pool, move |conn| Page::create(&form, &conn))
-                .await
-                .map_err(|_| HttpResponse::InternalServerError().finish())?;
-
-        Ok(HttpResponse::Ok().json(page))
+        exec_on_pool(pool, move |conn| Page::create(&form, &conn))
+            .await
+            .map(|page| HttpResponse::Ok().json(page))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 
     #[get("/pages/{id}")]
@@ -81,13 +92,9 @@ mod routes {
         pool: web::Data<DbPool>,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        let page = exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
+        exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
             .await
-            .map_err(|e| {
-                eprintln!("{}", e);
-                HttpResponse::InternalServerError().finish()
-            })?;
-
-        Ok(HttpResponse::Ok().json(page))
+            .map(|page| HttpResponse::Ok().json(page))
+            .map_err(|_| HttpResponse::InternalServerError().finish().into())
     }
 }
