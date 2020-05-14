@@ -66,7 +66,7 @@ impl User {
 struct InvalidPassword;
 
 impl User {
-    fn into_jwt(self) -> String {
+    fn into_jwt(self) -> crate::utils::jwt::Token {
         use crate::utils::jwt::Jwt;
         use chrono::Duration;
 

@@ -2,6 +2,10 @@ use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 #[derive(serde::Serialize)]
+pub struct Token {
+    token: String,
+}
+#[derive(serde::Serialize)]
 pub struct Jwt<S = &'static str> {
     /// Issuer (journali.nl)
     iss: S,
@@ -21,15 +25,17 @@ impl Jwt {
         Self { iss, exp, sub }
     }
 
-    pub fn tokenize(self) -> String {
+    pub fn tokenize(self) -> Token {
         use jsonwebtoken::{encode, EncodingKey, Header};
 
         let secret = std::env::var("SECRET").expect("SECRET");
-        encode(
+        let token = encode(
             &Header::default(),
             &self,
             &EncodingKey::from_secret(&secret.as_bytes()),
         )
-        .unwrap()
+        .unwrap();
+
+        Token { token }
     }
 }
