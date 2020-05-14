@@ -11,7 +11,8 @@ use serde::Serialize;
 
 use journali_api::{
     items::{
-        page::Page, text_field::TextField, todo::Todo, todo_item::TodoItem,
+        item::Item, page::Page, text_field::TextField, todo::Todo,
+        todo_item::TodoItem,
     },
     users::User,
     DbPool,
@@ -50,6 +51,7 @@ async fn main() -> std::io::Result<()> {
             }))
             .service(
                 web::scope("/api")
+                    .configure(Item::routes)
                     .configure(Page::routes)
                     .configure(User::routes)
                     .configure(Todo::routes)
