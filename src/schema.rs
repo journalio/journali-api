@@ -18,6 +18,14 @@ table! {
 }
 
 table! {
+    users (id) {
+        id -> Uuid,
+        username -> Text,
+        password -> Text,
+    }
+}
+
+table! {
     text_fields (id, item_type) {
         id -> Uuid,
         item_type -> Int2,
@@ -43,6 +51,7 @@ table! {
 }
 
 allow_tables_to_appear_in_same_query!(
+    users,
     items,
     pages,
     text_fields,

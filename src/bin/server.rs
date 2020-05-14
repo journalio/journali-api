@@ -13,6 +13,7 @@ use journali_api::{
     items::{
         page::Page, text_field::TextField, todo::Todo, todo_item::TodoItem,
     },
+    users::User,
     DbPool,
 };
 
@@ -50,6 +51,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .configure(Page::routes)
+                    .configure(User::routes)
                     .configure(Todo::routes)
                     .configure(TodoItem::routes)
                     .configure(TextField::routes),

@@ -12,11 +12,14 @@ use actix_web::{get, web, HttpResponse, Responder};
 
 pub use database::DbPool;
 
+mod utils;
+
 //#[allow(clippy::single_component_path_imports)]
 pub mod schema;
 
 mod database;
 pub mod items;
+pub mod users;
 
 /// The sole purpose of this module is to be
 /// able to reference the current commit hash.
