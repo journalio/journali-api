@@ -4,8 +4,6 @@
 //! - [`Item`](item/struct.Item.html)
 //! - [`Page`](page/struct.Page.html)
 
-use actix_web::{Error, HttpResponse};
-use serde::Serialize;
 use uuid::Uuid;
 
 use item::Item;
@@ -51,18 +49,4 @@ pub enum ItemTypeNames {
     Todo = 200,
     TodoItem = 210,
     TextField = 300,
-}
-
-trait Responsable {
-    fn into_response(self) -> Result<HttpResponse, Error>;
-}
-
-impl<T, E> Responsable for Result<T, E>
-where
-    T: Serialize,
-{
-    fn into_response(self) -> Result<HttpResponse, Error> {
-        self.map(|item| HttpResponse::Ok().json(item))
-            .map_err(|_| HttResponse::InternalServerError().finish().into())
-    }
 }

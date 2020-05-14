@@ -72,7 +72,7 @@ mod routes {
     use actix_web::{get, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
-    use crate::items::Responsable;
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::{NewPage, Page};

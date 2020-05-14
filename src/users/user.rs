@@ -1,7 +1,6 @@
+use diesel::{pg::PgConnection, prelude::*, QueryResult};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-use diesel::{pg::PgConnection, prelude::*, QueryResult};
 
 use crate::schema::users;
 
@@ -83,15 +82,16 @@ impl User {
 }
 
 mod routes {
-    use super::{LoginUser, NewUser, User};
-
     use actix_web::{
         post,
         web::{self},
         Error, HttpResponse,
     };
 
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
+
+    use super::{LoginUser, NewUser, User};
 
     #[post("/login")]
     pub(super) async fn login(
@@ -103,8 +103,7 @@ mod routes {
         exec_on_pool(pool, move |conn| User::find_user(conn, &cloned_user))
             .await
             .map(User::into_jwt)
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
-            .map(|jwt| HttpResponse::Ok().json(jwt))
+            .into_response()
     }
 
     #[post("/register")]
@@ -114,7 +113,6 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, move |conn| User::create(conn, &new_user))
             .await
-            .map(|user| HttpResponse::Ok().json(user))
-            .map_err(|_| HttpResponse::InternalServerError().finish().into())
+            .into_response()
     }
 }

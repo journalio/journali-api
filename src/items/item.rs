@@ -86,7 +86,7 @@ mod routes {
     use uuid::Uuid;
 
     use crate::items::item::UpdateParentRequest;
-    use crate::items::Responsable;
+    use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
     use super::Item;
