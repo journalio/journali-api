@@ -17,7 +17,7 @@ uuid = { version="*", features= ["serde", "v4"] }
 serde = "*"
 chrono = {version = "*", features = ["serde"]}
 jsonwebtoken = "7.1.0"
-bcrypt = "0.6.1"
+bcrypt = "0.8.0"
 
 [features]
 # Treat warnings as a build error
