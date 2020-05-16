@@ -37,6 +37,8 @@ fn create_pool() -> DbPool {
 #[cfg_attr(tarpaulin, skip)]
 async fn main() -> std::io::Result<()> {
     env_logger::from_env(Env::default().default_filter_or("info")).init();
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_BACKTRACE", "full");
 
     dotenv::dotenv().ok();
 
@@ -53,14 +55,15 @@ async fn main() -> std::io::Result<()> {
                 })
             }))
             .service(
-                web::scope("/api")
-                    .wrap(auth)
-                    .configure(Item::routes)
-                    .configure(User::routes)
-                    .configure(Page::routes)
-                    .configure(Todo::routes)
-                    .configure(TodoItem::routes)
-                    .configure(TextField::routes),
+                web::scope("/api").configure(User::routes).service(
+                    web::scope("")
+                        .wrap(auth)
+                        .configure(Item::routes)
+                        .configure(Page::routes)
+                        .configure(Todo::routes)
+                        .configure(TodoItem::routes)
+                        .configure(TextField::routes),
+                ),
             )
     })
     .bind("0.0.0.0:8000")?
