@@ -19,6 +19,13 @@ pub async fn validator(
     req: ServiceRequest,
     _credentials: BearerAuth,
 ) -> Result<ServiceRequest, Error> {
+    log::info!("PATHROUTE {}", req.path());
+
+    use std::io::{BufWriter, Write};
+    let f = std::fs::File::create("log.log").unwrap();
+    let mut bufwrite = BufWriter::new(f);
+
+    bufwrite.write(req.path().as_ref()).unwrap();
     if req.path() == "/register" || req.path() == "/login" {
         return Ok(req);
     }
@@ -27,7 +34,7 @@ pub async fn validator(
 
     exec_on_pool(pool, move |conn| {
         let jwt = Jwt::decrypt(_credentials.token()).unwrap();
-        User::find_by_id(&conn, jwt.sub)
+        User::find_by_id(&conn, jwt.sub())
     })
     .await
     .map(|_| req)

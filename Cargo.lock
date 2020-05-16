@@ -933,7 +933,9 @@ dependencies = [
  "env_logger",
  "jsonwebtoken",
  "load-dotenv",
+ "log",
  "serde",
+ "serde_json",
  "uuid",
 ]
 

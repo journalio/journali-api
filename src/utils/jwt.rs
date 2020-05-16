@@ -8,15 +8,15 @@ pub struct Token {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[repr(C)]
 pub struct Jwt {
     /// Issuer (journali.nl)
     iss: String,
 
-    /// expiration time
-    exp: DateTime<Utc>,
+    exp: i64,
 
     /// subject
-    pub sub: Uuid,
+    sub: Uuid,
 }
 
 fn get_secret() -> String {
@@ -28,7 +28,11 @@ impl Jwt {
         let now = Utc::now();
         let exp = now + duration;
 
-        Self { iss, exp, sub }
+        Self { iss, exp: exp.timestamp(), sub }
+    }
+
+    pub fn sub(&self) -> Uuid {
+        self.sub
     }
 
     pub fn tokenize(self) -> Token {
@@ -38,7 +42,7 @@ impl Jwt {
         let token = encode(
             &Header::default(),
             &self,
-            &EncodingKey::from_secret(&secret.as_bytes()),
+            &EncodingKey::from_secret(secret.as_bytes()),
         )
         .unwrap();
 
@@ -50,10 +54,12 @@ impl Jwt {
 
         let secret = get_secret();
 
+        let mut validation = Validation::default();
+        validation.iss = Some("journali.nl".into());
         decode::<Jwt>(
             jwt,
-            &DecodingKey::from_secret(secret.as_ref()),
-            &Validation::new(Algorithm::HS256),
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &validation,
         )
         .map(|token| token.claims)
     }
