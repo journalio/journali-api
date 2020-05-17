@@ -59,7 +59,9 @@ impl Page {
         item.create(conn)?;
         diesel::insert_into(pages::table).values(&page).get_result(conn)
     }
-
+    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        pages::table.filter(pages::columns::id.eq(id)).get_result(conn)
+    }
     pub(crate) fn get(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         pages::table
             .filter(pages::id.eq(id))

@@ -2,6 +2,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::page::Page;
+use crate::items::text_field::TextField;
+use crate::items::todo::Todo;
+use crate::items::todo_item::TodoItem;
+use crate::items::Items;
 use crate::schema::items;
 
 use super::reex_diesel::*;
@@ -66,6 +71,39 @@ impl Item {
             .set(form)
             .get_result(conn)
     }
+
+    pub(super) fn find_by_parent(
+        pid: &Uuid,
+        conn: &PgConnection,
+    ) -> QueryResult<Vec<Items>> {
+        items::table.filter(items::parent_id.eq(pid)).load::<Item>(conn).map(
+            |items| {
+                items
+                    .into_iter()
+                    .map(|item| match item.item_type {
+                        200 => Items::Todo(
+                            Todo::find(&item.id, &conn)
+                                .expect("Failed to load todo"),
+                        ),
+                        210 => Items::TodoItem(
+                            TodoItem::find(&item.id, &conn)
+                                .expect("Failed to load todo item"),
+                        ),
+                        100 => Items::Page(
+                            Page::find(&item.id, &conn)
+                                .expect("Failed to load todo item"),
+                        ),
+                        300 => Items::TextField(
+                            TextField::find(&item.id, &conn)
+                                .expect("Failed to load todo item"),
+                        ),
+                        _ => panic!("wtf"),
+                    })
+                    .rev()
+                    .collect()
+            },
+        )
+    }
 }
 
 #[derive(AsChangeset, Deserialize)]
@@ -77,12 +115,14 @@ pub struct UpdateParentRequest {
 
 impl Item {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::update_item_parent);
+        cfg.service(routes::update_item_parent)
+            .service(routes::get_items_by_parent);
     }
 }
 
 mod routes {
-    use actix_web::{patch, web, Error, HttpResponse};
+    use actix_web::{get, patch, web, Error, HttpResponse};
+    use serde::Deserialize;
     use uuid::Uuid;
 
     use crate::items::item::UpdateParentRequest;
@@ -90,6 +130,24 @@ mod routes {
     use crate::{database::exec_on_pool, DbPool};
 
     use super::Item;
+
+    #[derive(Deserialize)]
+    pub struct ItemsByParentRequest {
+        parent_id: Uuid,
+    }
+
+    #[get("/items")]
+    pub async fn get_items_by_parent(
+        pool: web::Data<DbPool>,
+        query: web::Query<ItemsByParentRequest>,
+    ) -> Result<HttpResponse, Error> {
+        exec_on_pool(pool, move |conn| {
+            Item::find_by_parent(&query.parent_id, &conn)
+        })
+        .await
+        .map(|item| HttpResponse::Ok().json(item))
+        .map_err(|_| HttpResponse::InternalServerError().finish().into())
+    }
 
     #[patch("/items/{id}")]
     pub async fn update_item_parent(

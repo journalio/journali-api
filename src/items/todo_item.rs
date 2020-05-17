@@ -43,6 +43,11 @@ impl TodoItem {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
         cfg.service(routes::create_todo_item);
     }
+    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        todo_items::table
+            .filter(todo_items::columns::id.eq(id))
+            .get_result(conn)
+    }
 
     pub(crate) fn create(
         new_todo: &NewTodoItem,

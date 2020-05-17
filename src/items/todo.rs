@@ -43,6 +43,9 @@ impl Todo {
         cfg.service(routes::create_todo);
     }
 
+    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        todos::table.filter(todos::columns::id.eq(id)).get_result(conn)
+    }
     pub(crate) fn create(
         new_todo: &NewTodo,
         conn: &PgConnection,
