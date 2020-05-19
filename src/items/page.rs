@@ -78,9 +78,13 @@ impl Update for Page {
         form: &UpdatePage,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(pages::table.filter(pages::columns::id.eq(id)))
-            .set(form)
-            .get_result(conn)
+        diesel::update(
+            pages::table
+                .filter(pages::columns::id.eq(id))
+                .filter(pages::item_type.eq(ItemTypeNames::Page as i16)),
+        )
+        .set(form)
+        .get_result(conn)
     }
 }
 

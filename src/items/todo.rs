@@ -64,7 +64,10 @@ impl Create for Todo {
 
 impl Find for Todo {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        todos::table.filter(todos::columns::id.eq(id)).get_result(conn)
+        todos::table
+            .filter(todos::columns::id.eq(id))
+            .filter(todos::item_type.eq(ItemTypeNames::Todo as i16))
+            .get_result(conn)
     }
 }
 
@@ -76,9 +79,13 @@ impl Update for Todo {
         update_todo: &UpdateTodo,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(todos::table.filter(todos::columns::id.eq(id)))
-            .set(update_todo)
-            .get_result(conn)
+        diesel::update(
+            todos::table
+                .filter(todos::columns::id.eq(id))
+                .filter(todos::item_type.eq(ItemTypeNames::Todo as i16)),
+        )
+        .set(update_todo)
+        .get_result(conn)
     }
 }
 

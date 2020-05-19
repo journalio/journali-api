@@ -71,6 +71,7 @@ impl Find for TodoItem {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         todo_items::table
             .filter(todo_items::columns::id.eq(id))
+            .filter(todo_items::item_type.eq(ItemTypeNames::TodoItem as i16))
             .get_result(conn)
     }
 }
@@ -83,9 +84,13 @@ impl Update for TodoItem {
         update_todo_item: &UpdateTodoItem,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(todo_items::table.filter(todo_items::columns::id.eq(id)))
-            .set(update_todo_item)
-            .get_result(conn)
+        diesel::update(
+            todo_items::table.filter(todo_items::columns::id.eq(id)).filter(
+                todo_items::item_type.eq(ItemTypeNames::TodoItem as i16),
+            ),
+        )
+        .set(update_todo_item)
+        .get_result(conn)
     }
 }
 

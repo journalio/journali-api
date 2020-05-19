@@ -71,6 +71,7 @@ impl Find for TextField {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         text_fields::table
             .filter(text_fields::columns::id.eq(id))
+            .filter(text_fields::item_type.eq(ItemTypeNames::TextField as i16))
             .get_result(conn)
     }
 }
@@ -84,7 +85,9 @@ impl Update for TextField {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
-            text_fields::table.filter(text_fields::columns::id.eq(id)),
+            text_fields::table.filter(text_fields::columns::id.eq(id)).filter(
+                text_fields::item_type.eq(ItemTypeNames::TextField as i16),
+            ),
         )
         .set(update_text_field)
         .get_result(conn)
