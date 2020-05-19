@@ -13,6 +13,8 @@ pub struct Jwt {
     /// Issuer (journali.nl)
     iss: String,
 
+    /// The JWT rfc says this should be
+    /// in **seconds** from unix EPOCH
     exp: i64,
 
     /// subject
@@ -50,7 +52,7 @@ impl Jwt {
     }
 
     pub fn decrypt(jwt: &str) -> Result<Jwt, Error> {
-        use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+        use jsonwebtoken::{decode, DecodingKey, Validation};
 
         let secret = get_secret();
 
