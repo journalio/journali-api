@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::items::ItemTypeNames;
-use crate::schema::pages;
+use crate::{items::ItemTypeNames, schema::pages};
 
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
+use super::{
+    crud::{Create, Find, Update},
+    reex_diesel::*,
+    ItemLike, ItemType,
+};
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Page {
@@ -42,21 +44,6 @@ impl ItemLike for NewPage {
         None
     }
 }
-
-impl Page {
-    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::create_page);
-        cfg.service(routes::find_page);
-    }
-}
-
-impl Page {
-    pub(crate) fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table.filter(pages::columns::id.eq(id)).get_result(conn)
-    }
-}
-
-use super::crud::{Create, Find, Update};
 
 impl Create for Page {
     type Create = NewPage;
@@ -97,15 +84,21 @@ impl Update for Page {
     }
 }
 
+impl Page {
+    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
+        cfg.service(routes::create_page);
+        cfg.service(routes::find_page);
+        cfg.service(routes::update_pages);
+    }
+}
+
 mod routes {
     use actix_web::{get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
-    use crate::DbPool;
+    use crate::{items::crud::Crudder, DbPool};
 
     use super::{NewPage, Page, UpdatePage};
-
-    use crate::items::crud::Crudder;
 
     #[post("/pages")]
     pub async fn create_page(

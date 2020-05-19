@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::items::ItemTypeNames;
-use crate::schema::todos;
+use crate::{items::ItemTypeNames, schema::todos};
 
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
+use super::{
+    crud::{Create, Find, Update},
+    reex_diesel::*,
+    ItemLike, ItemType,
+};
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Todo {
@@ -18,6 +20,12 @@ pub struct Todo {
 pub struct NewTodo {
     pub title: String,
     pub page_id: Uuid,
+}
+
+#[derive(Deserialize, AsChangeset)]
+#[table_name = "todos"]
+pub struct UpdateTodo {
+    title: String,
 }
 
 impl ItemLike for NewTodo {
@@ -38,18 +46,10 @@ impl ItemLike for NewTodo {
     }
 }
 
-impl Todo {
-    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::create_todo);
-    }
+impl Create for Todo {
+    type Create = NewTodo;
 
-    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        todos::table.filter(todos::columns::id.eq(id)).get_result(conn)
-    }
-    pub(crate) fn create(
-        new_todo: &NewTodo,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
+    fn create(new_todo: &NewTodo, conn: &PgConnection) -> QueryResult<Self> {
         let item = new_todo.as_new_item();
         let todo = Self {
             id: item.id,
@@ -62,21 +62,64 @@ impl Todo {
     }
 }
 
+impl Find for Todo {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        todos::table.filter(todos::columns::id.eq(id)).get_result(conn)
+    }
+}
+
+impl Update for Todo {
+    type Update = UpdateTodo;
+
+    fn update(
+        id: Uuid,
+        update_todo: &UpdateTodo,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
+        diesel::update(todos::table.filter(todos::columns::id.eq(id)))
+            .set(update_todo)
+            .get_result(conn)
+    }
+}
+
+impl Todo {
+    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
+        cfg.service(routes::create_todo);
+        cfg.service(routes::find_todo);
+        cfg.service(routes::update_todo);
+    }
+}
+
 mod routes {
-    use actix_web::{post, web, Error, HttpResponse};
+    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use uuid::Uuid;
 
-    use crate::utils::responsable::Responsable;
-    use crate::{database::exec_on_pool, DbPool};
+    use crate::{items::crud::Crudder, DbPool};
 
-    use super::{NewTodo, Todo};
+    use super::{NewTodo, Todo, UpdateTodo};
 
     #[post("/todos")]
     pub async fn create_todo(
         pool: web::Data<DbPool>,
         form: web::Json<NewTodo>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(&pool, move |conn| Todo::create(&form, &conn))
-            .await
-            .into_response()
+        Crudder::<Todo>::create(form.into_inner(), &pool).await
+    }
+
+    #[get("/todos/{id}")]
+    pub async fn find_todo(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<Todo>::find(id.into_inner(), &pool).await
+    }
+
+    #[patch("/todos/{id}")]
+    pub async fn update_todo(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+        form: web::Json<UpdateTodo>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<Todo>::update(id.into_inner(), form.into_inner(), &pool).await
     }
 }

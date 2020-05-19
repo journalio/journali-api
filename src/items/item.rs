@@ -2,15 +2,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::crud::Find;
+use super::reex_diesel::*;
+use super::{ItemLike, ItemType};
 use crate::items::page::Page;
 use crate::items::text_field::TextField;
 use crate::items::todo::Todo;
 use crate::items::todo_item::TodoItem;
 use crate::items::Items;
 use crate::schema::items;
-
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
 
 #[derive(Insertable, Queryable, Copy, Clone, Serialize)]
 pub struct Item {
@@ -82,19 +82,19 @@ impl Item {
                     .into_iter()
                     .map(|item| match item.item_type {
                         200 => Items::Todo(
-                            Todo::find(&item.id, &conn)
+                            Todo::find(item.id, &conn)
                                 .expect("Failed to load todo"),
                         ),
                         210 => Items::TodoItem(
-                            TodoItem::find(&item.id, &conn)
+                            TodoItem::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
                         100 => Items::Page(
-                            Page::find(&item.id, &conn)
+                            Page::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
                         300 => Items::TextField(
-                            TextField::find(&item.id, &conn)
+                            TextField::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
                         _ => panic!("wtf"),
@@ -125,9 +125,10 @@ mod routes {
     use serde::Deserialize;
     use uuid::Uuid;
 
-    use crate::items::item::UpdateParentRequest;
-    use crate::utils::responsable::Responsable;
-    use crate::{database::exec_on_pool, DbPool};
+    use crate::{
+        database::exec_on_pool, items::item::UpdateParentRequest,
+        utils::responsable::Responsable, DbPool,
+    };
 
     use super::Item;
 
