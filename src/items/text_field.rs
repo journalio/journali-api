@@ -79,7 +79,7 @@ mod routes {
         pool: web::Data<DbPool>,
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| TextField::create(&form, &conn))
+        exec_on_pool(&pool, move |conn| TextField::create(&form, &conn))
             .await
             .into_response()
     }

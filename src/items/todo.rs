@@ -75,7 +75,7 @@ mod routes {
         pool: web::Data<DbPool>,
         form: web::Json<NewTodo>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| Todo::create(&form, &conn))
+        exec_on_pool(&pool, move |conn| Todo::create(&form, &conn))
             .await
             .into_response()
     }

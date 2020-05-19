@@ -25,7 +25,7 @@ pub async fn validator(
 
     let pool = req.app_data::<DbPool>().unwrap();
 
-    exec_on_pool(pool, move |conn| {
+    exec_on_pool(&pool, move |conn| {
         let jwt = Jwt::decrypt(_credentials.token()).unwrap();
         User::find_by_id(&conn, jwt.sub())
     })

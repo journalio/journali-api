@@ -19,6 +19,12 @@ pub struct NewPage {
     pub title: String,
 }
 
+#[derive(AsChangeset, Deserialize)]
+#[table_name = "pages"]
+pub struct UpdatePage {
+    pub title: String,
+}
+
 impl ItemLike for NewPage {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
@@ -45,10 +51,17 @@ impl Page {
 }
 
 impl Page {
-    pub(crate) fn create(
-        new_page: &NewPage,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
+    pub(crate) fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        pages::table.filter(pages::columns::id.eq(id)).get_result(conn)
+    }
+}
+
+use super::crud::{Create, Find, Update};
+
+impl Create for Page {
+    type Create = NewPage;
+
+    fn create(new_page: &NewPage, conn: &PgConnection) -> QueryResult<Self> {
         let item = new_page.as_new_item();
         let page = Self {
             id: item.id,
@@ -59,10 +72,10 @@ impl Page {
         item.create(conn)?;
         diesel::insert_into(pages::table).values(&page).get_result(conn)
     }
-    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table.filter(pages::columns::id.eq(id)).get_result(conn)
-    }
-    pub(crate) fn get(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+}
+
+impl Find for Page {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         pages::table
             .filter(pages::id.eq(id))
             .filter(pages::item_type.eq(ItemTypeNames::Page as i16))
@@ -70,23 +83,36 @@ impl Page {
     }
 }
 
+impl Update for Page {
+    type Update = UpdatePage;
+
+    fn update(
+        id: Uuid,
+        form: &UpdatePage,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
+        diesel::update(pages::table.filter(pages::columns::id.eq(id)))
+            .set(form)
+            .get_result(conn)
+    }
+}
+
 mod routes {
-    use actix_web::{get, post, web, Error, HttpResponse};
+    use actix_web::{get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
-    use crate::utils::responsable::Responsable;
-    use crate::{database::exec_on_pool, DbPool};
+    use crate::DbPool;
 
-    use super::{NewPage, Page};
+    use super::{NewPage, Page, UpdatePage};
+
+    use crate::items::crud::Crudder;
 
     #[post("/pages")]
     pub async fn create_page(
         pool: web::Data<DbPool>,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| Page::create(&form, &conn))
-            .await
-            .into_response()
+        Crudder::<Page>::create(form.into_inner(), &pool).await
     }
 
     #[get("/pages/{id}")]
@@ -94,8 +120,15 @@ mod routes {
         pool: web::Data<DbPool>,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, |conn| Page::get(id.into_inner(), &conn))
-            .await
-            .into_response()
+        Crudder::<Page>::find(id.into_inner(), &pool).await
+    }
+
+    #[patch("/pages/{id}")]
+    pub async fn update_pages(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+        form: web::Json<UpdatePage>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<Page>::update(id.into_inner(), form.into_inner(), &pool).await
     }
 }

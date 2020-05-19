@@ -141,7 +141,7 @@ mod routes {
         pool: web::Data<DbPool>,
         query: web::Query<ItemsByParentRequest>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| {
+        exec_on_pool(&pool, move |conn| {
             Item::find_by_parent(&query.parent_id, &conn)
         })
         .await
@@ -155,7 +155,7 @@ mod routes {
         id: web::Path<Uuid>,
         form: web::Json<UpdateParentRequest>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| {
+        exec_on_pool(&pool, move |conn| {
             Item::update_parent(&id.into_inner(), &form, &conn)
         })
         .await
