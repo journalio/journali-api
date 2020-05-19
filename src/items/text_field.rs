@@ -42,6 +42,11 @@ impl TextField {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
         cfg.service(routes::create_text_field);
     }
+    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        text_fields::table
+            .filter(text_fields::columns::id.eq(id))
+            .get_result(conn)
+    }
 
     pub(crate) fn create(
         new_text_field: &NewTextField,

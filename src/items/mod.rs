@@ -4,9 +4,15 @@
 //! - [`Item`](item/struct.Item.html)
 //! - [`Page`](page/struct.Page.html)
 
+use serde::Serialize;
 use uuid::Uuid;
 
 use item::Item;
+
+use crate::items::page::Page;
+use crate::items::text_field::TextField;
+use crate::items::todo::Todo;
+use crate::items::todo_item::TodoItem;
 
 /// Reexport commonly used diesel
 /// namespaces
@@ -49,4 +55,12 @@ pub enum ItemTypeNames {
     Todo = 200,
     TodoItem = 210,
     TextField = 300,
+}
+
+#[derive(Serialize)]
+pub enum Items {
+    Page(Page),
+    Todo(Todo),
+    TodoItem(TodoItem),
+    TextField(TextField),
 }
