@@ -2,6 +2,7 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 
 use actix_web::{middleware::Logger, web, App, HttpResponse, HttpServer};
+use actix_web_httpauth::middleware::HttpAuthentication;
 use diesel::{
     pg,
     r2d2::{self, ConnectionManager},
@@ -15,6 +16,7 @@ use journali_api::{
         todo_item::TodoItem,
     },
     users::User,
+    utils::validator,
     DbPool,
 };
 
@@ -35,10 +37,13 @@ fn create_pool() -> DbPool {
 #[cfg_attr(tarpaulin, skip)]
 async fn main() -> std::io::Result<()> {
     env_logger::from_env(Env::default().default_filter_or("info")).init();
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_BACKTRACE", "full");
 
     dotenv::dotenv().ok();
 
     HttpServer::new(move || {
+        let auth = HttpAuthentication::bearer(validator);
         App::new()
             .data(create_pool())
             .wrap(Logger::default())
@@ -50,13 +55,15 @@ async fn main() -> std::io::Result<()> {
                 })
             }))
             .service(
-                web::scope("/api")
-                    .configure(Item::routes)
-                    .configure(Page::routes)
-                    .configure(User::routes)
-                    .configure(Todo::routes)
-                    .configure(TodoItem::routes)
-                    .configure(TextField::routes),
+                web::scope("/api").configure(User::routes).service(
+                    web::scope("")
+                        .wrap(auth)
+                        .configure(Item::routes)
+                        .configure(Page::routes)
+                        .configure(Todo::routes)
+                        .configure(TodoItem::routes)
+                        .configure(TextField::routes),
+                ),
             )
     })
     .bind("0.0.0.0:8000")?
