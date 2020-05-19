@@ -35,7 +35,7 @@ pub trait Delete: Sized {
     fn delete(uuid: Uuid, connection: &PgConnection) -> QueryResult<()>;
 }
 
-pub struct Crudder<T: Send + Sync + 'static> {
+pub struct Crudder<T> {
     mark: PhantomData<T>,
 }
 
@@ -79,7 +79,7 @@ where
 
 impl<T> Crudder<T>
 where
-    T: Send + Sync + Delete + 'static,
+    T: Delete,
 {
     pub async fn delete(
         uuid: Uuid,
