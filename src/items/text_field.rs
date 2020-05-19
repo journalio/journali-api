@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::items::ItemTypeNames;
-use crate::schema::text_fields;
+use crate::{items::ItemTypeNames, schema::text_fields};
 
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
+use super::{
+    crud::{Create, Find, Update},
+    reex_diesel::*,
+    ItemLike, ItemType,
+};
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct TextField {
@@ -18,6 +20,12 @@ pub struct TextField {
 pub struct NewTextField {
     pub text: String,
     pub page_id: Uuid,
+}
+
+#[derive(Deserialize, AsChangeset)]
+#[table_name = "text_fields"]
+pub struct UpdateTextField {
+    pub text: String,
 }
 
 impl ItemLike for NewTextField {
@@ -38,17 +46,10 @@ impl ItemLike for NewTextField {
     }
 }
 
-impl TextField {
-    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::create_text_field);
-    }
-    pub fn find(id: &Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        text_fields::table
-            .filter(text_fields::columns::id.eq(id))
-            .get_result(conn)
-    }
+impl Create for TextField {
+    type Create = NewTextField;
 
-    pub(crate) fn create(
+    fn create(
         new_text_field: &NewTextField,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
@@ -66,21 +67,72 @@ impl TextField {
     }
 }
 
+impl Find for TextField {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        text_fields::table
+            .filter(text_fields::columns::id.eq(id))
+            .filter(text_fields::item_type.eq(ItemTypeNames::TextField as i16))
+            .get_result(conn)
+    }
+}
+
+impl Update for TextField {
+    type Update = UpdateTextField;
+
+    fn update(
+        id: Uuid,
+        update_text_field: &UpdateTextField,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
+        diesel::update(
+            text_fields::table.filter(text_fields::columns::id.eq(id)).filter(
+                text_fields::item_type.eq(ItemTypeNames::TextField as i16),
+            ),
+        )
+        .set(update_text_field)
+        .get_result(conn)
+    }
+}
+
+impl TextField {
+    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
+        cfg.service(routes::create_text_field);
+        cfg.service(routes::find_text_field);
+        cfg.service(routes::update_text_field);
+    }
+}
+
 mod routes {
-    use actix_web::{post, web, Error, HttpResponse};
+    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use uuid::Uuid;
 
-    use crate::utils::responsable::Responsable;
-    use crate::{database::exec_on_pool, DbPool};
+    use crate::{items::crud::Crudder, DbPool};
 
-    use super::{NewTextField, TextField};
+    use super::{NewTextField, TextField, UpdateTextField};
 
     #[post("/text_fields")]
     pub async fn create_text_field(
         pool: web::Data<DbPool>,
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| TextField::create(&form, &conn))
+        Crudder::<TextField>::create(form.into_inner(), &pool).await
+    }
+
+    #[get("/text_fields/{id}")]
+    pub async fn find_text_field(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<TextField>::find(id.into_inner(), &pool).await
+    }
+
+    #[patch("/text_fields/{id}")]
+    pub async fn update_text_field(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+        form: web::Json<UpdateTextField>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<TextField>::update(id.into_inner(), form.into_inner(), &pool)
             .await
-            .into_response()
     }
 }

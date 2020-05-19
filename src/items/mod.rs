@@ -20,6 +20,8 @@ mod reex_diesel {
     pub use diesel::{pg::PgConnection, prelude::*, QueryResult};
 }
 
+mod crud;
+
 pub mod item;
 pub mod page;
 pub mod text_field;

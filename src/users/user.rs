@@ -105,7 +105,7 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let cloned_user = user.clone();
 
-        exec_on_pool(pool, move |conn| User::find_user(conn, &cloned_user))
+        exec_on_pool(&pool, move |conn| User::find_user(conn, &cloned_user))
             .await
             .map(User::into_jwt)
             .into_response()
@@ -116,7 +116,7 @@ mod routes {
         pool: web::Data<DbPool>,
         new_user: web::Json<NewUser>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| User::create(conn, &new_user))
+        exec_on_pool(&pool, move |conn| User::create(conn, &new_user))
             .await
             .into_response()
     }

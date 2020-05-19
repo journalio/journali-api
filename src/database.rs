@@ -11,7 +11,7 @@ use core::{
 };
 
 pub(crate) fn exec_on_pool<T, E, F>(
-    pool: web::Data<DbPool>,
+    pool: &DbPool,
     f: F,
 ) -> impl Future<Output = Result<T, impl Debug + Display + ResponseError>>
 where
