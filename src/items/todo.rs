@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::{items::ItemTypeNames, schema::todos};
 
 use super::{
-    crud::{Create, Find, Update},
+    crud::{Create, Delete, Find, Update},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -89,16 +89,29 @@ impl Update for Todo {
     }
 }
 
+impl Delete for Todo {
+    fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
+        diesel::delete(
+            todos::table
+                .filter(todos::columns::id.eq(id))
+                .filter(todos::item_type.eq(ItemTypeNames::Todo as i16)),
+        )
+        .execute(conn)
+        .map(drop)
+    }
+}
+
 impl Todo {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
         cfg.service(routes::create_todo);
         cfg.service(routes::find_todo);
         cfg.service(routes::update_todo);
+        cfg.service(routes::delete_todo);
     }
 }
 
 mod routes {
-    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
     use crate::{items::crud::Crudder, DbPool};
@@ -128,5 +141,13 @@ mod routes {
         form: web::Json<UpdateTodo>,
     ) -> Result<HttpResponse, Error> {
         Crudder::<Todo>::update(id.into_inner(), form.into_inner(), &pool).await
+    }
+
+    #[delete("/todos/{id}")]
+    pub async fn delete_todo(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<Todo>::delete(id.into_inner(), &pool).await
     }
 }

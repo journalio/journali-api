@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::{items::ItemTypeNames, schema::pages};
 
 use super::{
-    crud::{Create, Find, Update},
+    crud::{Create, Delete, Find, Update},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -88,16 +88,29 @@ impl Update for Page {
     }
 }
 
+impl Delete for Page {
+    fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
+        diesel::delete(
+            pages::table
+                .filter(pages::columns::id.eq(id))
+                .filter(pages::item_type.eq(ItemTypeNames::Todo as i16)),
+        )
+        .execute(conn)
+        .map(drop)
+    }
+}
+
 impl Page {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
         cfg.service(routes::create_page);
         cfg.service(routes::find_page);
-        cfg.service(routes::update_pages);
+        cfg.service(routes::update_page);
+        cfg.service(routes::delete_page);
     }
 }
 
 mod routes {
-    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
     use crate::{items::crud::Crudder, DbPool};
@@ -121,11 +134,19 @@ mod routes {
     }
 
     #[patch("/pages/{id}")]
-    pub async fn update_pages(
+    pub async fn update_page(
         pool: web::Data<DbPool>,
         id: web::Path<Uuid>,
         form: web::Json<UpdatePage>,
     ) -> Result<HttpResponse, Error> {
         Crudder::<Page>::update(id.into_inner(), form.into_inner(), &pool).await
+    }
+
+    #[delete("/pages/{id}")]
+    pub async fn delete_page(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<Page>::delete(id.into_inner(), &pool).await
     }
 }

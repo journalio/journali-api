@@ -31,6 +31,10 @@ pub trait Update: Sized {
     ) -> QueryResult<Self>;
 }
 
+pub trait Delete: Sized {
+    fn delete(uuid: Uuid, connection: &PgConnection) -> QueryResult<()>;
+}
+
 pub struct Crudder<T: Send + Sync + 'static> {
     mark: PhantomData<T>,
 }
@@ -68,6 +72,20 @@ where
         pool: &DbPool,
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(pool, move |conn| T::update(uuid, &update, conn))
+            .await
+            .into_response()
+    }
+}
+
+impl<T> Crudder<T>
+where
+    T: Send + Sync + Delete + 'static,
+{
+    pub async fn delete(
+        uuid: Uuid,
+        pool: &DbPool,
+    ) -> Result<HttpResponse, Error> {
+        exec_on_pool(pool, move |conn| T::delete(uuid, conn))
             .await
             .into_response()
     }
