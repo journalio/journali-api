@@ -17,18 +17,24 @@ pub struct Todo {
     pub id: Uuid,
     pub item_type: i16,
     pub title: String,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 #[derive(Deserialize)]
 pub struct NewTodo {
     pub title: String,
     pub page_id: Uuid,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 #[derive(Deserialize, AsChangeset)]
 #[table_name = "todos"]
 pub struct UpdateTodo {
     title: String,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 impl TypeMarker for Todo {
@@ -62,6 +68,8 @@ impl Create for Todo {
             id: item.id,
             item_type: item.item_type,
             title: new_todo.title.clone(),
+            coord_x: new_todo.coord_x,
+            coord_y: new_todo.coord_y,
         };
 
         item.create(conn)?;
