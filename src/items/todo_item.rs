@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{items::ItemTypeNames, schema::todo_items};
+use crate::{
+    items::{ItemTypeNames, TypeMarker},
+    schema::todo_items,
+};
 
 use super::{
     crud::{Create, Delete, Find, Update},
@@ -29,13 +32,17 @@ pub struct UpdateTodoItem {
     pub title: String,
 }
 
+impl TypeMarker for TodoItem {
+    const TYPE: ItemTypeNames = ItemTypeNames::TodoItem;
+}
+
 impl ItemLike for NewTodoItem {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
-        ItemTypeNames::TodoItem as i16
+        TodoItem::TYPE as i16
     }
 
     fn parent_id(&self) -> Option<Uuid> {
@@ -71,7 +78,7 @@ impl Find for TodoItem {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         todo_items::table
             .filter(todo_items::columns::id.eq(id))
-            .filter(todo_items::item_type.eq(ItemTypeNames::TodoItem as i16))
+            .filter(todo_items::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
@@ -85,9 +92,9 @@ impl Update for TodoItem {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
-            todo_items::table.filter(todo_items::columns::id.eq(id)).filter(
-                todo_items::item_type.eq(ItemTypeNames::TodoItem as i16),
-            ),
+            todo_items::table
+                .filter(todo_items::columns::id.eq(id))
+                .filter(todo_items::item_type.eq(Self::TYPE as i16)),
         )
         .set(update_todo_item)
         .get_result(conn)
@@ -96,13 +103,7 @@ impl Update for TodoItem {
 
 impl Delete for TodoItem {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
-        diesel::delete(
-            todo_items::table
-                .filter(todo_items::columns::id.eq(id))
-                .filter(todo_items::item_type.eq(ItemTypeNames::Todo as i16)),
-        )
-        .execute(conn)
-        .map(drop)
+        super::Item::delete::<Self>(id, conn)
     }
 }
 

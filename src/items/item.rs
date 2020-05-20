@@ -58,6 +58,19 @@ impl Default for Item {
 }
 
 impl Item {
+    pub(super) fn delete<T>(id: Uuid, conn: &PgConnection) -> QueryResult<()>
+    where
+        T: super::TypeMarker,
+    {
+        diesel::delete(
+            items::table
+                .filter(items::columns::id.eq(id))
+                .filter(items::item_type.eq(T::TYPE as i16)),
+        )
+        .execute(conn)
+        .map(drop)
+    }
+
     pub(super) fn create(&self, conn: &PgConnection) -> QueryResult<Self> {
         diesel::insert_into(items::table).values(self).get_result(conn)
     }

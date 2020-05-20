@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{items::ItemTypeNames, schema::pages};
+use crate::{
+    items::{ItemTypeNames, TypeMarker},
+    schema::pages,
+};
 
 use super::{
     crud::{Create, Delete, Find, Update},
@@ -27,13 +30,17 @@ pub struct UpdatePage {
     pub title: String,
 }
 
+impl TypeMarker for Page {
+    const TYPE: ItemTypeNames = ItemTypeNames::Page;
+}
+
 impl ItemLike for NewPage {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
-        100
+        Page::TYPE as i16
     }
 
     fn parent_id(&self) -> Option<Uuid> {
@@ -65,7 +72,7 @@ impl Find for Page {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         pages::table
             .filter(pages::id.eq(id))
-            .filter(pages::item_type.eq(ItemTypeNames::Page as i16))
+            .filter(pages::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
@@ -81,7 +88,7 @@ impl Update for Page {
         diesel::update(
             pages::table
                 .filter(pages::columns::id.eq(id))
-                .filter(pages::item_type.eq(ItemTypeNames::Page as i16)),
+                .filter(pages::item_type.eq(Self::TYPE as i16)),
         )
         .set(form)
         .get_result(conn)
@@ -90,13 +97,7 @@ impl Update for Page {
 
 impl Delete for Page {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
-        diesel::delete(
-            pages::table
-                .filter(pages::columns::id.eq(id))
-                .filter(pages::item_type.eq(ItemTypeNames::Todo as i16)),
-        )
-        .execute(conn)
-        .map(drop)
+        super::Item::delete::<Self>(id, conn)
     }
 }
 

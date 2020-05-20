@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{items::ItemTypeNames, schema::text_fields};
+use crate::{
+    items::{ItemTypeNames, TypeMarker},
+    schema::text_fields,
+};
 
 use super::{
     crud::{Create, Delete, Find, Update},
@@ -28,13 +31,17 @@ pub struct UpdateTextField {
     pub text: String,
 }
 
+impl TypeMarker for TextField {
+    const TYPE: ItemTypeNames = ItemTypeNames::TextField;
+}
+
 impl ItemLike for NewTextField {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
-        ItemTypeNames::TextField as i16
+        TextField::TYPE as i16
     }
 
     fn parent_id(&self) -> Option<Uuid> {
@@ -71,7 +78,7 @@ impl Find for TextField {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         text_fields::table
             .filter(text_fields::columns::id.eq(id))
-            .filter(text_fields::item_type.eq(ItemTypeNames::TextField as i16))
+            .filter(text_fields::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
@@ -85,9 +92,9 @@ impl Update for TextField {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
-            text_fields::table.filter(text_fields::columns::id.eq(id)).filter(
-                text_fields::item_type.eq(ItemTypeNames::TextField as i16),
-            ),
+            text_fields::table
+                .filter(text_fields::columns::id.eq(id))
+                .filter(text_fields::item_type.eq(Self::TYPE as i16)),
         )
         .set(update_text_field)
         .get_result(conn)
@@ -96,13 +103,7 @@ impl Update for TextField {
 
 impl Delete for TextField {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
-        diesel::delete(
-            text_fields::table
-                .filter(text_fields::columns::id.eq(id))
-                .filter(text_fields::item_type.eq(ItemTypeNames::Todo as i16)),
-        )
-        .execute(conn)
-        .map(drop)
+        super::Item::delete::<Self>(id, conn)
     }
 }
 
