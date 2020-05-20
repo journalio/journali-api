@@ -39,8 +39,35 @@ pub struct LoginUser {
     password: String,
 }
 
+#[derive(AsChangeset, Deserialize)]
+#[table_name = "users"]
+pub struct UpdateUser {
+    username: Option<String>,
+    password: Option<String>,
+}
+
+impl UpdateUser {
+    fn hash_password(self) -> Self {
+        let password =
+            self.password.as_ref().map(|s| crate::utils::hash_password(s));
+
+        Self { password, username: self.username }
+    }
+}
+
 impl User {
-    // TODO: Hashing
+    fn update(
+        id: Uuid,
+        conn: &PgConnection,
+        update_user: UpdateUser,
+    ) -> QueryResult<Self> {
+        let update_user = update_user.hash_password();
+
+        diesel::update(users::table.filter(users::id.eq(id)))
+            .set(update_user)
+            .get_result(conn)
+    }
+
     fn create(conn: &PgConnection, newuser: &NewUser) -> QueryResult<Self> {
         let newuser = newuser.hash_password();
 
@@ -88,7 +115,7 @@ impl User {
 
 mod routes {
     use actix_web::{
-        post,
+        patch, post,
         web::{self},
         Error, HttpResponse,
     };
@@ -96,7 +123,8 @@ mod routes {
     use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
-    use super::{LoginUser, NewUser, User};
+    use super::{LoginUser, NewUser, UpdateUser, User};
+    use uuid::Uuid;
 
     #[post("/login")]
     pub(super) async fn login(
@@ -119,5 +147,20 @@ mod routes {
         exec_on_pool(&pool, move |conn| User::create(conn, &new_user))
             .await
             .into_response()
+    }
+
+    #[patch("/users/{id}")]
+    pub async fn update_todo_item(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+        update_user: web::Json<UpdateUser>,
+    ) -> Result<HttpResponse, Error> {
+        // Crudder::<TodoItem>::update(id.into_inner(), form.into_inner(), &pool)
+        //     .await
+        exec_on_pool(&pool, move |conn| {
+            User::update(id.into_inner(), conn, update_user.into_inner())
+        })
+        .await
+        .into_response()
     }
 }
