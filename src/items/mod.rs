@@ -51,6 +51,10 @@ pub trait ItemLike {
     }
 }
 
+pub trait TypeMarker {
+    const TYPE: ItemTypeNames;
+}
+
 #[repr(i16)]
 pub enum ItemTypeNames {
     Page = 100,

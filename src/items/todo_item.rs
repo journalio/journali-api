@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{items::ItemTypeNames, schema::todo_items};
+use crate::{
+    items::{ItemTypeNames, TypeMarker},
+    schema::todo_items,
+};
 
 use super::{
-    crud::{Create, Find, Update},
+    crud::{Create, Delete, Find, Update},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -29,13 +32,17 @@ pub struct UpdateTodoItem {
     pub title: String,
 }
 
+impl TypeMarker for TodoItem {
+    const TYPE: ItemTypeNames = ItemTypeNames::TodoItem;
+}
+
 impl ItemLike for NewTodoItem {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
-        ItemTypeNames::TodoItem as i16
+        TodoItem::TYPE as i16
     }
 
     fn parent_id(&self) -> Option<Uuid> {
@@ -71,7 +78,7 @@ impl Find for TodoItem {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         todo_items::table
             .filter(todo_items::columns::id.eq(id))
-            .filter(todo_items::item_type.eq(ItemTypeNames::TodoItem as i16))
+            .filter(todo_items::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
@@ -85,12 +92,18 @@ impl Update for TodoItem {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
-            todo_items::table.filter(todo_items::columns::id.eq(id)).filter(
-                todo_items::item_type.eq(ItemTypeNames::TodoItem as i16),
-            ),
+            todo_items::table
+                .filter(todo_items::columns::id.eq(id))
+                .filter(todo_items::item_type.eq(Self::TYPE as i16)),
         )
         .set(update_todo_item)
         .get_result(conn)
+    }
+}
+
+impl Delete for TodoItem {
+    fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
+        super::Item::delete::<Self>(id, conn)
     }
 }
 
@@ -99,11 +112,12 @@ impl TodoItem {
         cfg.service(routes::create_todo_item);
         cfg.service(routes::find_todo_item);
         cfg.service(routes::update_todo_item);
+        cfg.service(routes::delete_todo_item);
     }
 }
 
 mod routes {
-    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
     use crate::{items::crud::Crudder, DbPool};
@@ -134,5 +148,13 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         Crudder::<TodoItem>::update(id.into_inner(), form.into_inner(), &pool)
             .await
+    }
+
+    #[delete("/todos-items/{id}")]
+    pub async fn delete_todo_item(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<TodoItem>::delete(id.into_inner(), &pool).await
     }
 }

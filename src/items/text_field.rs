@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{items::ItemTypeNames, schema::text_fields};
+use crate::{
+    items::{ItemTypeNames, TypeMarker},
+    schema::text_fields,
+};
 
 use super::{
-    crud::{Create, Find, Update},
+    crud::{Create, Delete, Find, Update},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -28,13 +31,17 @@ pub struct UpdateTextField {
     pub text: String,
 }
 
+impl TypeMarker for TextField {
+    const TYPE: ItemTypeNames = ItemTypeNames::TextField;
+}
+
 impl ItemLike for NewTextField {
     fn id(&self) -> Uuid {
         Uuid::new_v4()
     }
 
     fn item_type(&self) -> ItemType {
-        ItemTypeNames::TextField as i16
+        TextField::TYPE as i16
     }
 
     fn parent_id(&self) -> Option<Uuid> {
@@ -71,7 +78,7 @@ impl Find for TextField {
     fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
         text_fields::table
             .filter(text_fields::columns::id.eq(id))
-            .filter(text_fields::item_type.eq(ItemTypeNames::TextField as i16))
+            .filter(text_fields::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
@@ -85,12 +92,18 @@ impl Update for TextField {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
-            text_fields::table.filter(text_fields::columns::id.eq(id)).filter(
-                text_fields::item_type.eq(ItemTypeNames::TextField as i16),
-            ),
+            text_fields::table
+                .filter(text_fields::columns::id.eq(id))
+                .filter(text_fields::item_type.eq(Self::TYPE as i16)),
         )
         .set(update_text_field)
         .get_result(conn)
+    }
+}
+
+impl Delete for TextField {
+    fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
+        super::Item::delete::<Self>(id, conn)
     }
 }
 
@@ -99,11 +112,12 @@ impl TextField {
         cfg.service(routes::create_text_field);
         cfg.service(routes::find_text_field);
         cfg.service(routes::update_text_field);
+        cfg.service(routes::delete_text_field);
     }
 }
 
 mod routes {
-    use actix_web::{get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
     use uuid::Uuid;
 
     use crate::{items::crud::Crudder, DbPool};
@@ -134,5 +148,13 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         Crudder::<TextField>::update(id.into_inner(), form.into_inner(), &pool)
             .await
+    }
+
+    #[delete("/text_fields/{id}")]
+    pub async fn delete_text_field(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+    ) -> Result<HttpResponse, Error> {
+        Crudder::<TextField>::delete(id.into_inner(), &pool).await
     }
 }
