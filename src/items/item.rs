@@ -67,7 +67,7 @@ impl Item {
                 .filter(items::columns::id.eq(id))
                 .filter(items::item_type.eq(T::TYPE as i16)),
         )
-        .execute(conn)
+        .get_result::<Item>(conn)
         .map(drop)
     }
 

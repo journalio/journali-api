@@ -4,6 +4,8 @@ use uuid::Uuid;
 
 use crate::schema::users;
 
+use crate::items::crud::{Create, Find};
+
 #[derive(Queryable, Serialize, Insertable, Debug)]
 pub struct User {
     pub id: Uuid,
@@ -15,6 +17,7 @@ impl User {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
         cfg.service(routes::login);
         cfg.service(routes::register);
+        cfg.service(routes::update_user);
     }
 }
 #[derive(Insertable, Serialize, Deserialize, Clone)]
@@ -39,17 +42,30 @@ pub struct LoginUser {
     password: String,
 }
 
-impl User {
-    // TODO: Hashing
-    fn create(conn: &PgConnection, newuser: &NewUser) -> QueryResult<Self> {
-        let newuser = newuser.hash_password();
+#[derive(AsChangeset, Deserialize)]
+#[table_name = "users"]
+pub struct UpdateUser {
+    username: Option<String>,
+    password: Option<String>,
+}
 
-        diesel::insert_into(users::table).values(newuser).get_result(conn)
-    }
+impl Create for User {
+    type Create = NewUser;
 
-    fn find_user(
+    fn create(
+        new_user: &Self::Create,
         conn: &PgConnection,
-        loginuser: &LoginUser,
+    ) -> QueryResult<Self> {
+        let new_user = new_user.hash_password();
+
+        diesel::insert_into(users::table).values(new_user).get_result(conn)
+    }
+}
+
+impl<'a> Find<&'a LoginUser> for User {
+    fn find(
+        loginuser: &'a LoginUser,
+        conn: &PgConnection,
     ) -> QueryResult<Self> {
         users::table
             .filter(
@@ -59,6 +75,29 @@ impl User {
             .into_iter()
             .find(move |user| user.verify_password(loginuser))
             .ok_or_else(|| diesel::result::Error::NotFound)
+    }
+}
+
+impl UpdateUser {
+    fn hash_password(self) -> Self {
+        let password =
+            self.password.as_ref().map(|s| crate::utils::hash_password(s));
+
+        Self { password, username: self.username }
+    }
+}
+
+impl User {
+    fn update(
+        id: Uuid,
+        conn: &PgConnection,
+        update_user: UpdateUser,
+    ) -> QueryResult<Self> {
+        let update_user = update_user.hash_password();
+
+        diesel::update(users::table.filter(users::id.eq(id)))
+            .set(update_user)
+            .get_result(conn)
     }
 
     pub fn find_by_id(conn: &PgConnection, id: Uuid) -> QueryResult<Self> {
@@ -88,7 +127,7 @@ impl User {
 
 mod routes {
     use actix_web::{
-        post,
+        patch, post,
         web::{self},
         Error, HttpResponse,
     };
@@ -96,7 +135,10 @@ mod routes {
     use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
-    use super::{LoginUser, NewUser, User};
+    use super::{LoginUser, NewUser, UpdateUser, User};
+    use uuid::Uuid;
+
+    use crate::items::crud::{Crudder, Find};
 
     #[post("/login")]
     pub(super) async fn login(
@@ -105,7 +147,7 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let cloned_user = user.clone();
 
-        exec_on_pool(&pool, move |conn| User::find_user(conn, &cloned_user))
+        exec_on_pool(&pool, move |conn| User::find(&cloned_user, conn))
             .await
             .map(User::into_jwt)
             .into_response()
@@ -116,8 +158,19 @@ mod routes {
         pool: web::Data<DbPool>,
         new_user: web::Json<NewUser>,
     ) -> Result<HttpResponse, Error> {
-        exec_on_pool(&pool, move |conn| User::create(conn, &new_user))
-            .await
-            .into_response()
+        Crudder::<User>::create(new_user.into_inner(), &pool).await
+    }
+
+    #[patch("/users/{id}")]
+    pub async fn update_user(
+        pool: web::Data<DbPool>,
+        id: web::Path<Uuid>,
+        update_user: web::Json<UpdateUser>,
+    ) -> Result<HttpResponse, Error> {
+        exec_on_pool(&pool, move |conn| {
+            User::update(id.into_inner(), conn, update_user.into_inner())
+        })
+        .await
+        .into_response()
     }
 }

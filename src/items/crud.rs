@@ -17,8 +17,8 @@ pub trait Create: Sized {
     ) -> QueryResult<Self>;
 }
 
-pub trait Find: Sized {
-    fn find(id: Uuid, connection: &PgConnection) -> QueryResult<Self>;
+pub trait Find<By = Uuid>: Sized {
+    fn find(id: By, connection: &PgConnection) -> QueryResult<Self>;
 }
 
 pub trait Update: Sized {
@@ -54,11 +54,34 @@ where
 }
 
 impl<T> Crudder<T>
-where
-    T: Send + Sync + Find + serde::Serialize + 'static,
+// where
+//     T: Send + Sync + Find + serde::Serialize + 'static,
+//     By: Send + 'static
 {
-    pub async fn find(id: Uuid, pool: &DbPool) -> Result<HttpResponse, Error> {
-        exec_on_pool(pool, move |conn| T::find(id, conn)).await.into_response()
+    pub async fn find<By>(id: By, pool: &DbPool) -> Result<HttpResponse, Error>
+    where
+        T: Send + Sync + Find<By> + serde::Serialize + 'static,
+        By: Send + 'static,
+    {
+        Crudder::<T>::find_and_then(id, pool, |t| t).await
+    }
+
+    pub async fn find_and_then<F, O, By>(
+        id: By,
+        pool: &DbPool,
+        f: F,
+    ) -> Result<HttpResponse, Error>
+    where
+        T: Send + Sync + Find<By> + 'static,
+        By: Send + 'static,
+        O: Send + 'static,
+        F: FnOnce(T) -> O,
+        O: serde::Serialize,
+    {
+        exec_on_pool(pool, |conn| T::find(id, conn))
+            .await
+            .map(f)
+            .into_response()
     }
 }
 
