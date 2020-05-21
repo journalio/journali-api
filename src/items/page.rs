@@ -68,12 +68,34 @@ impl Create for Page {
     }
 }
 
-impl Find for Page {
-    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table
-            .filter(pages::id.eq(id))
-            .filter(pages::item_type.eq(Self::TYPE as i16))
-            .get_result(conn)
+use diesel::BelongingToDsl;
+
+impl Find<(Uuid, crate::users::user::User)> for Page {
+    fn find((id, user): (Uuid, crate::users::user::User), conn: &PgConnection) -> QueryResult<Self> {
+
+        crate::schema::pages::table.inner_join(super::item::Item::belonging_to(&user));
+        todo!("thjis");
+        //let blong = super::item::Item::belonging_to(&user);
+
+        //<super::item::Item as BelongingToDsl<&crate::users::user::User>>::belonging_to(&user);
+        
+        //let data = super::item::Item::belonging_to(&user).left_join(pages::table.on(crate::schema::items::id.eq(pages::id)))
+          //  .filter(pages::id.eq(id))
+           // .filter(pages::item_type.eq(Self::TYPE as i16))
+          //  .select(((pages::id, pages::item_type, pages::title)))
+            //.get_result::<(crate::items::item::Item, Option<Page>)>(conn)?;
+            //.get_result::<Page>()
+           // Ok(data.1.unwrap())
+//        let elem: &((Uuid, ItemType, Option<Uuid>, Option<ItemType>, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Uuid), Option<(Uuid, ItemType, String)> ) = &data[0];
+  //      elem.clone()
+            //data
+
+        // pages::table
+        //     .filter(pages::id.eq(id))
+        //     .filter(pages::item_type.eq(Self::TYPE as i16))
+        //     .get_result(conn)
+
+       // todo!("ALL OF THIS OMG")
     }
 }
 
@@ -111,7 +133,7 @@ impl Page {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpResponse, HttpRequest};
     use uuid::Uuid;
 
     use crate::{items::crud::Crudder, DbPool};
@@ -129,9 +151,12 @@ mod routes {
     #[get("/pages/{id}")]
     pub async fn find_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::find(id.into_inner(), &pool).await
+        // panic!(req.extensions().get::<crate::users::user::User>().map(|u| u.clone()).unwrap().username);
+        let user = req.extensions().get::<crate::users::user::User>().map(|u| u.clone()).unwrap();
+        Crudder::<Page>::find((id.into_inner(), user), &pool).await
     }
 
     #[patch("/pages/{id}")]

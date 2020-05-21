@@ -2,6 +2,7 @@ use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
 use actix_web::Error;
 use actix_web_httpauth::extractors::bearer::BearerAuth;
+use actix_web::HttpMessage;
 
 use crate::database::exec_on_pool;
 use crate::users::User;
@@ -30,6 +31,9 @@ pub async fn validator(
         User::find_by_id(&conn, jwt.sub())
     })
     .await
-    .map(|_| req)
+    .map(|user| {
+        req.extensions_mut().insert(user);
+        req
+    })
     .map_err(ErrorUnauthorized)
 }
