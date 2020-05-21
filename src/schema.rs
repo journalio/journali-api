@@ -22,6 +22,8 @@ table! {
         id -> Uuid,
         item_type -> Int2,
         text -> Text,
+        coord_x -> Int4,
+        coord_y -> Int4,
     }
 }
 
@@ -39,6 +41,8 @@ table! {
         id -> Uuid,
         item_type -> Int2,
         title -> Text,
+        coord_x -> Int4,
+        coord_y -> Int4,
     }
 }
 

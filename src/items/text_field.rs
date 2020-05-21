@@ -17,18 +17,24 @@ pub struct TextField {
     pub id: Uuid,
     pub item_type: i16,
     pub text: String,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 #[derive(Deserialize)]
 pub struct NewTextField {
     pub text: String,
     pub page_id: Uuid,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 #[derive(Deserialize, AsChangeset)]
 #[table_name = "text_fields"]
 pub struct UpdateTextField {
     pub text: String,
+    pub coord_x: i32,
+    pub coord_y: i32,
 }
 
 impl TypeMarker for TextField {
@@ -65,6 +71,8 @@ impl Create for TextField {
             id: item.id,
             item_type: item.item_type,
             text: new_text_field.text.clone(),
+            coord_x: new_text_field.coord_x,
+            coord_y: new_text_field.coord_y,
         };
 
         item.create(conn)?;
