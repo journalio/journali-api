@@ -72,10 +72,20 @@ use diesel::BelongingToDsl;
 
 impl Find<(Uuid, crate::users::user::User)> for Page {
     fn find((id, user): (Uuid, crate::users::user::User), conn: &PgConnection) -> QueryResult<Self> {
+        use crate::schema;
+       /// crate::schema::pages::table.inner_join(crate::schema::items.on(crate::schema::items::id))
+     //  crate::schema::pages::table.inner_join(crate::schema::items::table.on(crate::schema::items::id)).belonging_to(&user);
+        //crate::schema::pages::table.inner_join(super::item::Item::belonging_to(&user).on(crate::schema::items::id));
+            // THIS WORKS
+        super::item::Item::belonging_to(&user)
+            .inner_join(crate::schema::pages::table.on(crate::schema::pages::id.eq(crate::schema::items::id)))
+            .get_result::<(super::item::Item, Page)>(conn)
+            .map(|(_, page)| page)
+        //let _: () = x;
 
-        crate::schema::pages::table.inner_join(super::item::Item::belonging_to(&user));
-        todo!("thjis");
-        //let blong = super::item::Item::belonging_to(&user);
+
+//let blong = super::item::Item::belonging_to(&user);
+//        todo!("thjis");
 
         //<super::item::Item as BelongingToDsl<&crate::users::user::User>>::belonging_to(&user);
         
