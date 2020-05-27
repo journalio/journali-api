@@ -90,20 +90,27 @@ impl Find<(Uuid, crate::users::user::User)> for Page {
 }
 
 impl Update for Page {
-    type Update = UpdatePage;
+    type Update = OwnedItem<UpdatePage>;
 
     fn update(
         id: Uuid,
-        form: &UpdatePage,
+        form: &Self::Update,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(
-            pages::table
-                .filter(pages::columns::id.eq(id))
-                .filter(pages::item_type.eq(Self::TYPE as i16)),
-        )
-        .set(form)
-        .get_result(conn)
+        use super::item::Item;
+        let update_page = form.as_ref();
+        
+        if Item::has_owner::<Self>(id, form.user.id, conn) {
+            diesel::update(
+                pages::table
+                    .filter(pages::columns::id.eq(id))
+                    .filter(pages::item_type.eq(Self::TYPE as i16)),
+            )
+            .set(update_page)
+            .get_result(conn)     
+        } else {
+            Err(diesel::result::Error::NotFound)
+        } 
     }
 }
 
@@ -146,6 +153,7 @@ mod routes {
             .get::<crate::users::user::User>()
             .cloned()
             .unwrap();
+        
         let owned_item = OwnedItem::new(user, form.into_inner());
         Crudder::<Page>::create(owned_item, &pool).await
     }
@@ -162,16 +170,21 @@ mod routes {
             .get::<crate::users::user::User>()
             .cloned()
             .unwrap();
+        
         Crudder::<Page>::find((id.into_inner(), user), &pool).await
     }
 
     #[patch("/pages/{id}")]
     pub async fn update_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
         form: web::Json<UpdatePage>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::update(id.into_inner(), form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        let owned_item = OwnedItem::new(user, form.into_inner());
+
+        Crudder::<Page>::update(id.into_inner(), owned_item, &pool).await
     }
 
     #[delete("/pages/{id}")]

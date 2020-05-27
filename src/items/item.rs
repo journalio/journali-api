@@ -66,6 +66,17 @@ impl Default for Item {
 }
 
 impl Item {
+    pub fn has_owner<T: super::TypeMarker>(id: Uuid, owner: Uuid, conn: &PgConnection) -> bool {
+        use diesel::dsl::{select, exists};
+
+        select(exists(
+            items::table
+                .filter(items::columns::id.eq(id))
+                .filter(items::item_type.eq(T::TYPE as i16))
+        )).get_result(conn).unwrap_or(false)
+    }
+
+
     pub(super) fn delete<T>(id: Uuid, conn: &PgConnection) -> QueryResult<()>
     where
         T: super::TypeMarker,
@@ -110,6 +121,7 @@ impl Item {
                             TodoItem::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
+                        
                         100 => Items::Page(
                             Page::find((item.id, unreachable!()), &conn)
                                 .expect("Failed to load todo item"),
