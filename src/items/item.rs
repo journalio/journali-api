@@ -71,7 +71,8 @@ impl Item {
 
         select(exists(
             items::table
-                .filter(items::columns::id.eq(id))
+                .filter(items::owner_id.eq(owner))
+                .filter(items::id.eq(id))
                 .filter(items::item_type.eq(T::TYPE as i16))
         )).get_result(conn).unwrap_or(false)
     }
@@ -127,7 +128,7 @@ impl Item {
                                 .expect("Failed to load todo item"),
                         ),
                         300 => Items::TextField(
-                            TextField::find(item.id, &conn)
+                            TextField::find((item.id, unreachable!()), &conn)
                                 .expect("Failed to load todo item"),
                         ),
                         _ => panic!("wtf"),

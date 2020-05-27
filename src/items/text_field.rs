@@ -1,3 +1,4 @@
+use core::convert::AsRef;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,6 +9,7 @@ use crate::{
 
 use super::{
     crud::{Create, Delete, Find, Update},
+    item::OwnedItem,
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -60,19 +62,22 @@ impl ItemLike for NewTextField {
 }
 
 impl Create for TextField {
-    type Create = NewTextField;
+    type Create = OwnedItem<NewTextField>;
 
     fn create(
-        new_text_field: &NewTextField,
+        new_text_field: &Self::Create,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        let item = new_text_field.as_new_item();
+        let text = new_text_field.as_ref().text.clone();
+
+        let item = new_text_field.into_item();
+
         let text_field = Self {
             id: item.id,
             item_type: item.item_type,
-            text: new_text_field.text.clone(),
-            coord_x: new_text_field.coord_x,
-            coord_y: new_text_field.coord_y,
+            text, 
+            coord_x: new_text_field.as_ref().coord_x,
+            coord_y: new_text_field.as_ref().coord_y,
         };
 
         item.create(conn)?;
@@ -82,30 +87,43 @@ impl Create for TextField {
     }
 }
 
-impl Find for TextField {
-    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        text_fields::table
-            .filter(text_fields::columns::id.eq(id))
-            .filter(text_fields::item_type.eq(Self::TYPE as i16))
-            .get_result(conn)
+impl Find<(Uuid, crate::users::user::User)> for TextField {
+    fn find((id, user): (Uuid, crate::users::user::User), conn: &PgConnection) -> QueryResult<Self> {
+        
+        use crate::schema;
+        super::item::Item::belonging_to(&user)
+            .inner_join(
+                schema::text_fields::table
+                    .on(schema::text_fields::id.eq(schema::items::id)),
+            )
+            .get_result::<(super::item::Item, TextField)>(conn)
+            .map(|(_, text_field)| text_field)
     }
 }
 
 impl Update for TextField {
-    type Update = UpdateTextField;
+    type Update = OwnedItem<UpdateTextField>;
 
     fn update(
         id: Uuid,
-        update_text_field: &UpdateTextField,
+        form: &Self::Update,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(
-            text_fields::table
-                .filter(text_fields::columns::id.eq(id))
-                .filter(text_fields::item_type.eq(Self::TYPE as i16)),
-        )
-        .set(update_text_field)
-        .get_result(conn)
+
+        use super::item::Item;
+        let update_text_field = form.as_ref();
+        
+        if Item::has_owner::<Self>(id, form.user.id, conn) {
+            diesel::update(
+                text_fields::table
+                    .filter(text_fields::columns::id.eq(id))
+                    .filter(text_fields::item_type.eq(Self::TYPE as i16)),
+            )
+            .set(update_text_field)
+            .get_result(conn)     
+        } else {
+            Err(diesel::result::Error::NotFound)
+        } 
     }
 }
 
@@ -125,36 +143,48 @@ impl TextField {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
+    use actix_web::{delete, get, patch, post, web, Error, HttpRequest, HttpResponse};
     use uuid::Uuid;
 
-    use crate::{items::crud::Crudder, DbPool};
+    use crate::{items::{crud::Crudder, item::OwnedItem}, DbPool};
 
     use super::{NewTextField, TextField, UpdateTextField};
 
     #[post("/text_fields")]
     pub async fn create_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::create(form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        
+        let owned_item = OwnedItem::new(user, form.into_inner());
+        Crudder::<TextField>::create(owned_item, &pool).await
     }
 
     #[get("/text_fields/{id}")]
     pub async fn find_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::find(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        Crudder::<TextField>::find((id.into_inner(), user), &pool).await
     }
 
     #[patch("/text_fields/{id}")]
     pub async fn update_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
         form: web::Json<UpdateTextField>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::update(id.into_inner(), form.into_inner(), &pool)
+        let user = req.extensions().get().cloned().unwrap();
+        
+        let owned_item = OwnedItem::new(user, form.into_inner());
+
+
+        Crudder::<TextField>::update(id.into_inner(), owned_item, &pool)
             .await
     }
 

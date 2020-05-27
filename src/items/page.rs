@@ -150,7 +150,7 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req
             .extensions()
-            .get::<crate::users::user::User>()
+            .get()
             .cloned()
             .unwrap();
         
@@ -164,10 +164,9 @@ mod routes {
         req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        // panic!(req.extensions().get::<crate::users::user::User>().map(|u| u.clone()).unwrap().username);
         let user = req
             .extensions()
-            .get::<crate::users::user::User>()
+            .get()
             .cloned()
             .unwrap();
         
