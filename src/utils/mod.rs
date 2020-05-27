@@ -1,8 +1,8 @@
 use actix_web::dev::ServiceRequest;
 use actix_web::error::ErrorUnauthorized;
 use actix_web::Error;
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use actix_web::HttpMessage;
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 
 use crate::database::exec_on_pool;
 use crate::users::User;

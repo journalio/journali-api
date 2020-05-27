@@ -1,3 +1,5 @@
+use core::convert::AsRef;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -13,7 +15,9 @@ use crate::items::Items;
 use crate::schema::items;
 use crate::users::user::User;
 
-#[derive(Identifiable, Associations, Insertable, Queryable, Copy, Clone, Serialize)]
+#[derive(
+    Identifiable, Associations, Insertable, Queryable, Copy, Clone, Serialize,
+)]
 #[belongs_to(User, foreign_key = "owner_id")]
 pub struct Item {
     pub(crate) id: Uuid,
@@ -120,6 +124,38 @@ impl Item {
                     .collect()
             },
         )
+    }
+}
+
+#[derive(Clone)]
+pub struct OwnedItem<Item> {
+    /// The user `Item` belongs to
+    pub user: User,
+
+    /// The item in question
+    pub item: Item,
+}
+
+impl<Item> AsRef<Item> for OwnedItem<Item> {
+    fn as_ref(&self) -> &Item {
+        &self.item
+    }
+}
+
+impl<T> OwnedItem<T> {
+    pub const fn new(user: User, item: T) -> Self {
+        Self { user, item }
+    }
+
+    pub fn into_item(&self) -> Item
+    where
+        T: ItemLike,
+    {
+        let Self { user, item } = self;
+        let mut item = item.as_new_item();
+
+        item.owner_id = user.id;
+        item
     }
 }
 

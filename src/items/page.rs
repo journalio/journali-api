@@ -1,3 +1,4 @@
+use core::convert::AsRef;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,6 +9,7 @@ use crate::{
 
 use super::{
     crud::{Create, Delete, Find, Update},
+    item::OwnedItem,
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -19,7 +21,7 @@ pub struct Page {
     pub title: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct NewPage {
     pub title: String,
 }
@@ -53,15 +55,16 @@ impl ItemLike for NewPage {
 }
 
 impl Create for Page {
-    type Create = NewPage;
+    type Create = OwnedItem<NewPage>;
 
-    fn create(new_page: &NewPage, conn: &PgConnection) -> QueryResult<Self> {
-        let item = new_page.as_new_item();
-        let page = Self {
-            id: item.id,
-            item_type: item.item_type,
-            title: new_page.title.clone(),
-        };
+    fn create(
+        new_page: &Self::Create,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
+        let title = new_page.as_ref().title.clone();
+        let item = new_page.into_item();
+
+        let page = Self { id: item.id, item_type: item.item_type, title };
 
         item.create(conn)?;
         diesel::insert_into(pages::table).values(&page).get_result(conn)
@@ -71,41 +74,18 @@ impl Create for Page {
 use diesel::BelongingToDsl;
 
 impl Find<(Uuid, crate::users::user::User)> for Page {
-    fn find((id, user): (Uuid, crate::users::user::User), conn: &PgConnection) -> QueryResult<Self> {
+    fn find(
+        (id, user): (Uuid, crate::users::user::User),
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
         use crate::schema;
-       /// crate::schema::pages::table.inner_join(crate::schema::items.on(crate::schema::items::id))
-     //  crate::schema::pages::table.inner_join(crate::schema::items::table.on(crate::schema::items::id)).belonging_to(&user);
-        //crate::schema::pages::table.inner_join(super::item::Item::belonging_to(&user).on(crate::schema::items::id));
-            // THIS WORKS
         super::item::Item::belonging_to(&user)
-            .inner_join(crate::schema::pages::table.on(crate::schema::pages::id.eq(crate::schema::items::id)))
+            .inner_join(
+                schema::pages::table
+                    .on(schema::pages::id.eq(schema::items::id)),
+            )
             .get_result::<(super::item::Item, Page)>(conn)
             .map(|(_, page)| page)
-        //let _: () = x;
-
-
-//let blong = super::item::Item::belonging_to(&user);
-//        todo!("thjis");
-
-        //<super::item::Item as BelongingToDsl<&crate::users::user::User>>::belonging_to(&user);
-        
-        //let data = super::item::Item::belonging_to(&user).left_join(pages::table.on(crate::schema::items::id.eq(pages::id)))
-          //  .filter(pages::id.eq(id))
-           // .filter(pages::item_type.eq(Self::TYPE as i16))
-          //  .select(((pages::id, pages::item_type, pages::title)))
-            //.get_result::<(crate::items::item::Item, Option<Page>)>(conn)?;
-            //.get_result::<Page>()
-           // Ok(data.1.unwrap())
-//        let elem: &((Uuid, ItemType, Option<Uuid>, Option<ItemType>, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Uuid), Option<(Uuid, ItemType, String)> ) = &data[0];
-  //      elem.clone()
-            //data
-
-        // pages::table
-        //     .filter(pages::id.eq(id))
-        //     .filter(pages::item_type.eq(Self::TYPE as i16))
-        //     .get_result(conn)
-
-       // todo!("ALL OF THIS OMG")
     }
 }
 
@@ -143,19 +123,31 @@ impl Page {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse, HttpRequest};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
     use uuid::Uuid;
 
-    use crate::{items::crud::Crudder, DbPool};
+    use crate::{
+        items::{crud::Crudder, item::OwnedItem},
+        DbPool,
+    };
 
     use super::{NewPage, Page, UpdatePage};
 
     #[post("/pages")]
     pub async fn create_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::create(form.into_inner(), &pool).await
+        let user = req
+            .extensions()
+            .get::<crate::users::user::User>()
+            .cloned()
+            .unwrap();
+        let owned_item = OwnedItem::new(user, form.into_inner());
+        Crudder::<Page>::create(owned_item, &pool).await
     }
 
     #[get("/pages/{id}")]
@@ -165,7 +157,11 @@ mod routes {
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
         // panic!(req.extensions().get::<crate::users::user::User>().map(|u| u.clone()).unwrap().username);
-        let user = req.extensions().get::<crate::users::user::User>().map(|u| u.clone()).unwrap();
+        let user = req
+            .extensions()
+            .get::<crate::users::user::User>()
+            .cloned()
+            .unwrap();
         Crudder::<Page>::find((id.into_inner(), user), &pool).await
     }
 
