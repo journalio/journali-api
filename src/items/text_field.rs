@@ -101,31 +101,37 @@ impl Find<(Uuid, crate::users::user::User)> for TextField {
     }
 }
 
-impl Update for TextField {
-    type Update = OwnedItem<UpdateTextField>;
-
-    fn update(
-        id: Uuid,
-        form: &Self::Update,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-
-        use super::item::Item;
-        let update_text_field = form.as_ref();
-        
-        if Item::has_owner::<Self>(id, form.user.id, conn) {
-            diesel::update(
-                text_fields::table
-                    .filter(text_fields::columns::id.eq(id))
-                    .filter(text_fields::item_type.eq(Self::TYPE as i16)),
-            )
-            .set(update_text_field)
-            .get_result(conn)     
-        } else {
-            Err(diesel::result::Error::NotFound)
-        } 
+crate::impl_update! {
+    for TextField {
+        type Update = UpdateTextField;
+        table = text_fields
     }
 }
+//impl Update for TextField {
+//    type Update = OwnedItem<UpdateTextField>;
+//
+//    fn update(
+//        id: Uuid,
+//        form: &Self::Update,
+//        conn: &PgConnection,
+//    ) -> QueryResult<Self> {
+//
+//        use super::item::Item;
+//        let update_text_field = form.as_ref();
+//        
+//        if Item::has_owner::<Self>(id, form.user.id, conn) {
+//            diesel::update(
+//                text_fields::table
+//                    .filter(text_fields::columns::id.eq(id))
+//                    .filter(text_fields::item_type.eq(Self::TYPE as i16)),
+//            )
+//            .set(update_text_field)
+//            .get_result(conn)     
+//        } else {
+//            Err(diesel::result::Error::NotFound)
+//        } 
+//    }
+//}
 
 impl Delete for TextField {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {

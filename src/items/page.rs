@@ -89,30 +89,36 @@ impl Find<(Uuid, crate::users::user::User)> for Page {
     }
 }
 
-impl Update for Page {
-    type Update = OwnedItem<UpdatePage>;
-
-    fn update(
-        id: Uuid,
-        form: &Self::Update,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        use super::item::Item;
-        let update_page = form.as_ref();
-        
-        if Item::has_owner::<Self>(id, form.user.id, conn) {
-            diesel::update(
-                pages::table
-                    .filter(pages::columns::id.eq(id))
-                    .filter(pages::item_type.eq(Self::TYPE as i16)),
-            )
-            .set(update_page)
-            .get_result(conn)     
-        } else {
-            Err(diesel::result::Error::NotFound)
-        } 
+crate::impl_update! {
+    for Page {
+        type Update = UpdatePage;
+        table = pages
     }
 }
+//impl Update for Page {
+//    type Update = OwnedItem<UpdatePage>;
+//
+//    fn update(
+//        id: Uuid,
+//        form: &Self::Update,
+//        conn: &PgConnection,
+//    ) -> QueryResult<Self> {
+//        use super::item::Item;
+//        let update_page = form.as_ref();
+//        
+//        if Item::has_owner::<Self>(id, form.user.id, conn) {
+//            diesel::update(
+//                pages::table
+//                    .filter(pages::columns::id.eq(id))
+//                    .filter(pages::item_type.eq(Self::TYPE as i16)),
+//            )
+//            .set(update_page)
+//            .get_result(conn)     
+//        } else {
+//            Err(diesel::result::Error::NotFound)
+//        } 
+//    }
+//}
 
 impl Delete for Page {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {

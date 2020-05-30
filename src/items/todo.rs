@@ -86,23 +86,30 @@ impl Find for Todo {
     }
 }
 
-impl Update for Todo {
-    type Update = UpdateTodo;
-
-    fn update(
-        id: Uuid,
-        update_todo: &UpdateTodo,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        diesel::update(
-            todos::table
-                .filter(todos::columns::id.eq(id))
-                .filter(todos::item_type.eq(Self::TYPE as i16)),
-        )
-        .set(update_todo)
-        .get_result(conn)
+crate::impl_update! {
+    for Todo {
+        type Update = UpdateTodo;
+        table = todos
     }
 }
+
+//impl Update for Todo {
+//    type Update = UpdateTodo;
+//
+//    fn update(
+//        id: Uuid,
+//        update_todo: &UpdateTodo,
+//        conn: &PgConnection,
+//    ) -> QueryResult<Self> {
+//        diesel::update(
+//            todos::table
+//                .filter(todos::columns::id.eq(id))
+//                .filter(todos::item_type.eq(Self::TYPE as i16)),
+//        )
+//        .set(update_todo)
+//        .get_result(conn)
+//    }
+//}
 
 impl Delete for Todo {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
