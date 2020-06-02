@@ -30,6 +30,7 @@ pub struct NewTodoItem {
 #[table_name = "todo_items"]
 pub struct UpdateTodoItem {
     pub title: String,
+    pub is_checked: bool,
 }
 
 impl TypeMarker for TodoItem {
