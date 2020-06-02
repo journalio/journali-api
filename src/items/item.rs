@@ -2,15 +2,16 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::crud::Find;
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
 use crate::items::page::Page;
 use crate::items::text_field::TextField;
 use crate::items::todo::Todo;
 use crate::items::todo_item::TodoItem;
-use crate::items::Items;
+use crate::items::{Items, ViewItem};
 use crate::schema::items;
+
+use super::crud::Find;
+use super::reex_diesel::*;
+use super::{ItemLike, ItemType};
 
 #[derive(Insertable, Queryable, Copy, Clone, Serialize)]
 pub struct Item {
@@ -86,36 +87,50 @@ impl Item {
     }
 
     pub(super) fn find_by_parent(
-        pid: &Uuid,
+        pid: &Option<Uuid>,
         conn: &PgConnection,
-    ) -> QueryResult<Vec<Items>> {
-        items::table.filter(items::parent_id.eq(pid)).load::<Item>(conn).map(
-            |items| {
-                items
-                    .into_iter()
-                    .map(|item| match item.item_type {
-                        200 => Items::Todo(
+    ) -> QueryResult<Vec<ViewItem>> {
+        let mut query = items::table.into_boxed();
+        if pid.is_some() {
+            query = query.filter(items::parent_id.eq(pid.unwrap()));
+        }
+        query.load::<Item>(conn).map(|items| {
+            items
+                .into_iter()
+                .map(|item| match item.item_type {
+                    200 => ViewItem {
+                        item,
+                        subtype: Items::Todo(
                             Todo::find(item.id, &conn)
                                 .expect("Failed to load todo"),
                         ),
-                        210 => Items::TodoItem(
+                    },
+                    210 => ViewItem {
+                        item,
+                        subtype: Items::TodoItem(
                             TodoItem::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                        100 => Items::Page(
+                    },
+                    100 => ViewItem {
+                        item,
+                        subtype: Items::Page(
                             Page::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                        300 => Items::TextField(
+                    },
+                    300 => ViewItem {
+                        item,
+                        subtype: Items::TextField(
                             TextField::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                        _ => panic!("wtf"),
-                    })
-                    .rev()
-                    .collect()
-            },
-        )
+                    },
+                    _ => panic!("wtf"),
+                })
+                .rev()
+                .collect()
+        })
     }
 }
 
@@ -147,7 +162,7 @@ mod routes {
 
     #[derive(Deserialize)]
     pub struct ItemsByParentRequest {
-        parent_id: Uuid,
+        parent_id: Option<Uuid>,
     }
 
     #[get("/items")]
