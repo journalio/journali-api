@@ -9,6 +9,7 @@ use crate::{
 
 use super::{
     crud::{Create, Delete, Find, Update},
+    crud2::{crud2http, raw_crud, ModelFromPartial},
     item::OwnedItem,
     reex_diesel::*,
     ItemLike, ItemType,
@@ -54,20 +55,31 @@ impl ItemLike for NewPage {
     }
 }
 
-impl Create for Page {
-    type Create = OwnedItem<NewPage>;
+impl raw_crud::Create for Page {
+    fn create(self, conn: &PgConnection) -> QueryResult<Self> {
+        diesel::insert_into(pages::table).values(&self).get_result(conn)
+    }
+}
 
-    fn create(
-        new_page: &Self::Create,
+impl ModelFromPartial<NewPage> for Page {
+    fn from_partial(partial: NewPage, item: &crate::items::item::Item) -> Self {
+        Self { id: item.id, item_type: item.item_type, title: partial.title }
+    }
+}
+
+impl raw_crud::Update<UpdatePage> for Page {
+    fn update(
+        id: Uuid,
+        update_page: UpdatePage,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        let title = new_page.as_ref().title.clone();
-        let item = new_page.into_item();
-
-        let page = Self { id: item.id, item_type: item.item_type, title };
-
-        item.create(conn)?;
-        diesel::insert_into(pages::table).values(&page).get_result(conn)
+        diesel::update(
+            pages::table
+                .filter(pages::columns::id.eq(id))
+                .filter(pages::item_type.eq(Self::TYPE as i16)),
+        )
+        .set(update_page)
+        .get_result(conn)
     }
 }
 
@@ -88,37 +100,6 @@ impl Find<(Uuid, crate::users::user::User)> for Page {
             .map(|(_, page)| page)
     }
 }
-
-crate::impl_update! {
-    for Page {
-        type Update = UpdatePage;
-        table = pages
-    }
-}
-//impl Update for Page {
-//    type Update = OwnedItem<UpdatePage>;
-//
-//    fn update(
-//        id: Uuid,
-//        form: &Self::Update,
-//        conn: &PgConnection,
-//    ) -> QueryResult<Self> {
-//        use super::item::Item;
-//        let update_page = form.as_ref();
-//        
-//        if Item::has_owner::<Self>(id, form.user.id, conn) {
-//            diesel::update(
-//                pages::table
-//                    .filter(pages::columns::id.eq(id))
-//                    .filter(pages::item_type.eq(Self::TYPE as i16)),
-//            )
-//            .set(update_page)
-//            .get_result(conn)     
-//        } else {
-//            Err(diesel::result::Error::NotFound)
-//        } 
-//    }
-//}
 
 impl Delete for Page {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
@@ -142,7 +123,7 @@ mod routes {
     use uuid::Uuid;
 
     use crate::{
-        items::{crud::Crudder, item::OwnedItem},
+        items::{crud::Crudder, crud2::crud2http, item::OwnedItem},
         DbPool,
     };
 
@@ -154,14 +135,8 @@ mod routes {
         req: HttpRequest,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        let user = req
-            .extensions()
-            .get()
-            .cloned()
-            .unwrap();
-        
-        let owned_item = OwnedItem::new(user, form.into_inner());
-        Crudder::<Page>::create(owned_item, &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::create::<Page, _>(form.into_inner(), user, &pool).await
     }
 
     #[get("/pages/{id}")]
@@ -170,12 +145,8 @@ mod routes {
         req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        let user = req
-            .extensions()
-            .get()
-            .cloned()
-            .unwrap();
-        
+        let user = req.extensions().get().cloned().unwrap();
+
         Crudder::<Page>::find((id.into_inner(), user), &pool).await
     }
 
@@ -187,9 +158,14 @@ mod routes {
         form: web::Json<UpdatePage>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-        let owned_item = OwnedItem::new(user, form.into_inner());
 
-        Crudder::<Page>::update(id.into_inner(), owned_item, &pool).await
+        crud2hhtp::create::<Page, _>(
+            id.into_inner(),
+            form.into_inner(),
+            user,
+            &pool,
+        )
+        .await
     }
 
     #[delete("/pages/{id}")]

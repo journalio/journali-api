@@ -75,7 +75,7 @@ impl Create for TextField {
         let text_field = Self {
             id: item.id,
             item_type: item.item_type,
-            text, 
+            text,
             coord_x: new_text_field.as_ref().coord_x,
             coord_y: new_text_field.as_ref().coord_y,
         };
@@ -88,8 +88,10 @@ impl Create for TextField {
 }
 
 impl Find<(Uuid, crate::users::user::User)> for TextField {
-    fn find((id, user): (Uuid, crate::users::user::User), conn: &PgConnection) -> QueryResult<Self> {
-        
+    fn find(
+        (id, user): (Uuid, crate::users::user::User),
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
         use crate::schema;
         super::item::Item::belonging_to(&user)
             .inner_join(
@@ -118,7 +120,7 @@ crate::impl_update! {
 //
 //        use super::item::Item;
 //        let update_text_field = form.as_ref();
-//        
+//
 //        if Item::has_owner::<Self>(id, form.user.id, conn) {
 //            diesel::update(
 //                text_fields::table
@@ -126,10 +128,10 @@ crate::impl_update! {
 //                    .filter(text_fields::item_type.eq(Self::TYPE as i16)),
 //            )
 //            .set(update_text_field)
-//            .get_result(conn)     
+//            .get_result(conn)
 //        } else {
 //            Err(diesel::result::Error::NotFound)
-//        } 
+//        }
 //    }
 //}
 
@@ -149,10 +151,15 @@ impl TextField {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpRequest, HttpResponse};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
     use uuid::Uuid;
 
-    use crate::{items::{crud::Crudder, item::OwnedItem}, DbPool};
+    use crate::{
+        items::{crud::Crudder, item::OwnedItem},
+        DbPool,
+    };
 
     use super::{NewTextField, TextField, UpdateTextField};
 
@@ -163,7 +170,7 @@ mod routes {
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-        
+
         let owned_item = OwnedItem::new(user, form.into_inner());
         Crudder::<TextField>::create(owned_item, &pool).await
     }
@@ -186,12 +193,10 @@ mod routes {
         form: web::Json<UpdateTextField>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-        
+
         let owned_item = OwnedItem::new(user, form.into_inner());
 
-
-        Crudder::<TextField>::update(id.into_inner(), owned_item, &pool)
-            .await
+        Crudder::<TextField>::update(id.into_inner(), owned_item, &pool).await
     }
 
     #[delete("/text_fields/{id}")]

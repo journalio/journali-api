@@ -21,7 +21,7 @@ mod reex_diesel {
 }
 
 pub mod crud;
-
+pub mod crud2;
 pub mod item;
 pub mod page;
 pub mod text_field;
@@ -71,18 +71,57 @@ pub enum Items {
     TextField(TextField),
 }
 
+pub trait FromPartial<T> {
+    fn from_partial(item: &Item, incomplete: T) -> Self;
+}
+
+use crate::items::item::OwnedItem;
+
+pub trait Create
+where
+    <<Self as Create>::Table as diesel::QuerySource>::FromClause:
+        diesel::query_builder::QueryFragment<diesel::pg::Pg>,
+    Self: diesel::Insertable<<Self as Create>::Table>,
+    Self::Values: diesel::insertable::CanInsertInSingleQuery<diesel::pg::Pg>
+        + diesel::query_builder::QueryFragment<diesel::pg::Pg>,
+    Self: FromPartial<<Self as Create>::Create>,
+{
+    type Table: diesel::associations::HasTable;
+    type Create: Clone + ItemLike;
+    fn create<C>(
+        model: OwnedItem<Self::Create>,
+        conn: &diesel::PgConnection,
+    ) -> diesel::QueryResult<Self> {
+        let new_create_item = model.as_ref().clone();
+        let new_item = model.into_item();
+
+        let this = Self::from_partial(&new_item, new_create_item);
+
+        new_item.create(conn)?;
+        diesel::insert_into(Self::Table::table()).values(this).execute(conn)
+    }
+}
 #[macro_export]
 macro_rules! impl_update {
     (for $item:ty {type Update = $create:ident; table = $table:ident}) => {
         impl crate::items::crud::Update for $item {
             type Update = crate::items::item::OwnedItem<$create>;
 
-            fn update(id: Uuid, update: &Self::Update, conn: &PgConnection) -> QueryResult<Self> {
+            fn update(
+                id: Uuid,
+                update: &Self::Update,
+                conn: &PgConnection,
+            ) -> QueryResult<Self> {
                 let update_item = update.as_ref();
-                if crate::items::item::Item::has_owner::<Self>(id, update.user.id, conn) {
-                    diesel::update($table::table
-                        .filter($table::columns::id.eq(id))
-                        .filter($table::item_type.eq(Self::TYPE as i16))
+                if crate::items::item::Item::has_owner::<Self>(
+                    id,
+                    update.user.id,
+                    conn,
+                ) {
+                    diesel::update(
+                        $table::table
+                            .filter($table::columns::id.eq(id))
+                            .filter($table::item_type.eq(Self::TYPE as i16)),
                     )
                     .set(update_item)
                     .get_result(conn)
@@ -91,5 +130,5 @@ macro_rules! impl_update {
                 }
             }
         }
-    }
+    };
 }
