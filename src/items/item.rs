@@ -126,7 +126,7 @@ impl Item {
                                 .expect("Failed to load todo item"),
                         ),
                     },
-                    _ => panic!("wtf"),
+                    _ => unreachable!("Please report an error"),
                 })
                 .rev()
                 .collect()
