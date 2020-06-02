@@ -1,4 +1,3 @@
-use core::convert::AsRef;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,8 +7,7 @@ use crate::{
 };
 
 use super::{
-    crud::{Create, Delete, Find, Update},
-    item::OwnedItem,
+    crud2::{raw_crud, ModelFromPartial},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -26,7 +24,7 @@ pub struct TextField {
 #[derive(Deserialize)]
 pub struct NewTextField {
     pub text: String,
-    pub page_id: Uuid,
+    pub text_field_id: Uuid,
     pub coord_x: i32,
     pub coord_y: i32,
 }
@@ -53,89 +51,61 @@ impl ItemLike for NewTextField {
     }
 
     fn parent_id(&self) -> Option<Uuid> {
-        Some(self.page_id)
+        None
     }
 
     fn parent_type(&self) -> Option<i16> {
-        Some(ItemTypeNames::Page as i16)
+        None
     }
 }
 
-impl Create for TextField {
-    type Create = OwnedItem<NewTextField>;
+impl raw_crud::Create for TextField {
+    fn create(self, conn: &PgConnection) -> QueryResult<Self> {
+        diesel::insert_into(text_fields::table).values(&self).get_result(conn)
+    }
+}
 
-    fn create(
-        new_text_field: &Self::Create,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        let text = new_text_field.as_ref().text.clone();
-
-        let item = new_text_field.into_item();
-
-        let text_field = Self {
+impl ModelFromPartial<NewTextField> for TextField {
+    fn from_partial(
+        partial: NewTextField,
+        item: &crate::items::item::Item,
+    ) -> Self {
+        Self {
             id: item.id,
             item_type: item.item_type,
-            text,
-            coord_x: new_text_field.as_ref().coord_x,
-            coord_y: new_text_field.as_ref().coord_y,
-        };
+            text: partial.text,
+            coord_x: partial.coord_x,
+            coord_y: partial.coord_y,
+        }
+    }
+}
 
-        item.create(conn)?;
-        diesel::insert_into(text_fields::table)
-            .values(&text_field)
+impl raw_crud::Update<UpdateTextField> for TextField {
+    fn update(
+        id: Uuid,
+        update_text_field: UpdateTextField,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
+        diesel::update(
+            text_fields::table
+                .filter(text_fields::columns::id.eq(id))
+                .filter(text_fields::item_type.eq(Self::TYPE as i16)),
+        )
+        .set(update_text_field)
+        .get_result(conn)
+    }
+}
+
+impl raw_crud::Find for TextField {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        text_fields::table
+            .filter(text_fields::columns::id.eq(id))
+            .filter(text_fields::item_type.eq(Self::TYPE as i16))
             .get_result(conn)
     }
 }
 
-impl Find<(Uuid, crate::users::user::User)> for TextField {
-    fn find(
-        (id, user): (Uuid, crate::users::user::User),
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        use crate::schema;
-        super::item::Item::belonging_to(&user)
-            .inner_join(
-                schema::text_fields::table
-                    .on(schema::text_fields::id.eq(schema::items::id)),
-            )
-            .get_result::<(super::item::Item, TextField)>(conn)
-            .map(|(_, text_field)| text_field)
-    }
-}
-
-crate::impl_update! {
-    for TextField {
-        type Update = UpdateTextField;
-        table = text_fields
-    }
-}
-//impl Update for TextField {
-//    type Update = OwnedItem<UpdateTextField>;
-//
-//    fn update(
-//        id: Uuid,
-//        form: &Self::Update,
-//        conn: &PgConnection,
-//    ) -> QueryResult<Self> {
-//
-//        use super::item::Item;
-//        let update_text_field = form.as_ref();
-//
-//        if Item::has_owner::<Self>(id, form.user.id, conn) {
-//            diesel::update(
-//                text_fields::table
-//                    .filter(text_fields::columns::id.eq(id))
-//                    .filter(text_fields::item_type.eq(Self::TYPE as i16)),
-//            )
-//            .set(update_text_field)
-//            .get_result(conn)
-//        } else {
-//            Err(diesel::result::Error::NotFound)
-//        }
-//    }
-//}
-
-impl Delete for TextField {
+impl raw_crud::Delete for TextField {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
         super::Item::delete::<Self>(id, conn)
     }
@@ -156,10 +126,7 @@ mod routes {
     };
     use uuid::Uuid;
 
-    use crate::{
-        items::{crud::Crudder, item::OwnedItem},
-        DbPool,
-    };
+    use crate::{items::crud2::crud2http, DbPool};
 
     use super::{NewTextField, TextField, UpdateTextField};
 
@@ -170,9 +137,7 @@ mod routes {
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-
-        let owned_item = OwnedItem::new(user, form.into_inner());
-        Crudder::<TextField>::create(owned_item, &pool).await
+        crud2http::create::<TextField, _>(form.into_inner(), user, &pool).await
     }
 
     #[get("/text_fields/{id}")]
@@ -182,7 +147,7 @@ mod routes {
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-        Crudder::<TextField>::find((id.into_inner(), user), &pool).await
+        crud2http::find::<TextField>(id.into_inner(), user, &pool).await
     }
 
     #[patch("/text_fields/{id}")]
@@ -194,16 +159,22 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
 
-        let owned_item = OwnedItem::new(user, form.into_inner());
-
-        Crudder::<TextField>::update(id.into_inner(), owned_item, &pool).await
+        crud2http::update::<TextField, _>(
+            id.into_inner(),
+            form.into_inner(),
+            user,
+            &pool,
+        )
+        .await
     }
 
     #[delete("/text_fields/{id}")]
     pub async fn delete_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::delete(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::delete::<TextField>(id.into_inner(), user, &pool).await
     }
 }

@@ -1,4 +1,3 @@
-use core::convert::AsRef;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,9 +7,7 @@ use crate::{
 };
 
 use super::{
-    crud::{Create, Delete, Find, Update},
-    crud2::{crud2http, raw_crud, ModelFromPartial},
-    item::OwnedItem,
+    crud2::{raw_crud, ModelFromPartial},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -83,25 +80,16 @@ impl raw_crud::Update<UpdatePage> for Page {
     }
 }
 
-use diesel::BelongingToDsl;
-
-impl Find<(Uuid, crate::users::user::User)> for Page {
-    fn find(
-        (id, user): (Uuid, crate::users::user::User),
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        use crate::schema;
-        super::item::Item::belonging_to(&user)
-            .inner_join(
-                schema::pages::table
-                    .on(schema::pages::id.eq(schema::items::id)),
-            )
-            .get_result::<(super::item::Item, Page)>(conn)
-            .map(|(_, page)| page)
+impl raw_crud::Find for Page {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        pages::table
+            .filter(pages::columns::id.eq(id))
+            .filter(pages::item_type.eq(Self::TYPE as i16))
+            .get_result(conn)
     }
 }
 
-impl Delete for Page {
+impl raw_crud::Delete for Page {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
         super::Item::delete::<Self>(id, conn)
     }
@@ -122,10 +110,7 @@ mod routes {
     };
     use uuid::Uuid;
 
-    use crate::{
-        items::{crud::Crudder, crud2::crud2http, item::OwnedItem},
-        DbPool,
-    };
+    use crate::{items::crud2::crud2http, DbPool};
 
     use super::{NewPage, Page, UpdatePage};
 
@@ -146,8 +131,7 @@ mod routes {
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
-
-        Crudder::<Page>::find((id.into_inner(), user), &pool).await
+        crud2http::find::<Page>(id.into_inner(), user, &pool).await
     }
 
     #[patch("/pages/{id}")]
@@ -159,7 +143,7 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
 
-        crud2hhtp::create::<Page, _>(
+        crud2http::update::<Page, _>(
             id.into_inner(),
             form.into_inner(),
             user,
@@ -171,8 +155,10 @@ mod routes {
     #[delete("/pages/{id}")]
     pub async fn delete_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::delete(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::delete::<Page>(id.into_inner(), user, &pool).await
     }
 }
