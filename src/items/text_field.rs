@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    crud::{Create, Delete, Find, Update},
+    crud2::{raw_crud, ModelFromPartial},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -24,7 +24,7 @@ pub struct TextField {
 #[derive(Deserialize)]
 pub struct NewTextField {
     pub text: String,
-    pub page_id: Uuid,
+    pub text_field_id: Uuid,
     pub coord_x: i32,
     pub coord_y: i32,
 }
@@ -51,52 +51,39 @@ impl ItemLike for NewTextField {
     }
 
     fn parent_id(&self) -> Option<Uuid> {
-        Some(self.page_id)
+        None
     }
 
     fn parent_type(&self) -> Option<i16> {
-        Some(ItemTypeNames::Page as i16)
+        None
     }
 }
 
-impl Create for TextField {
-    type Create = NewTextField;
+impl raw_crud::Create for TextField {
+    fn create(self, conn: &PgConnection) -> QueryResult<Self> {
+        diesel::insert_into(text_fields::table).values(&self).get_result(conn)
+    }
+}
 
-    fn create(
-        new_text_field: &NewTextField,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        let item = new_text_field.as_new_item();
-        let text_field = Self {
+impl ModelFromPartial<NewTextField> for TextField {
+    fn from_partial(
+        partial: NewTextField,
+        item: &crate::items::item::Item,
+    ) -> Self {
+        Self {
             id: item.id,
             item_type: item.item_type,
-            text: new_text_field.text.clone(),
-            coord_x: new_text_field.coord_x,
-            coord_y: new_text_field.coord_y,
-        };
-
-        item.create(conn)?;
-        diesel::insert_into(text_fields::table)
-            .values(&text_field)
-            .get_result(conn)
+            text: partial.text,
+            coord_x: partial.coord_x,
+            coord_y: partial.coord_y,
+        }
     }
 }
 
-impl Find for TextField {
-    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        text_fields::table
-            .filter(text_fields::columns::id.eq(id))
-            .filter(text_fields::item_type.eq(Self::TYPE as i16))
-            .get_result(conn)
-    }
-}
-
-impl Update for TextField {
-    type Update = UpdateTextField;
-
+impl raw_crud::Update<UpdateTextField> for TextField {
     fn update(
         id: Uuid,
-        update_text_field: &UpdateTextField,
+        update_text_field: UpdateTextField,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
@@ -109,7 +96,16 @@ impl Update for TextField {
     }
 }
 
-impl Delete for TextField {
+impl raw_crud::Find for TextField {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        text_fields::table
+            .filter(text_fields::columns::id.eq(id))
+            .filter(text_fields::item_type.eq(Self::TYPE as i16))
+            .get_result(conn)
+    }
+}
+
+impl raw_crud::Delete for TextField {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
         super::Item::delete::<Self>(id, conn)
     }
@@ -125,44 +121,60 @@ impl TextField {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
     use uuid::Uuid;
 
-    use crate::{items::crud::Crudder, DbPool};
+    use crate::{items::crud2::crud2http, DbPool};
 
     use super::{NewTextField, TextField, UpdateTextField};
 
     #[post("/text_fields")]
     pub async fn create_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         form: web::Json<NewTextField>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::create(form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::create::<TextField, _>(form.into_inner(), user, &pool).await
     }
 
     #[get("/text_fields/{id}")]
     pub async fn find_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::find(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::find::<TextField>(id.into_inner(), user, &pool).await
     }
 
     #[patch("/text_fields/{id}")]
     pub async fn update_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
         form: web::Json<UpdateTextField>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::update(id.into_inner(), form.into_inner(), &pool)
-            .await
+        let user = req.extensions().get().cloned().unwrap();
+
+        crud2http::update::<TextField, _>(
+            id.into_inner(),
+            form.into_inner(),
+            user,
+            &pool,
+        )
+        .await
     }
 
     #[delete("/text_fields/{id}")]
     pub async fn delete_text_field(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TextField>::delete(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::delete::<TextField>(id.into_inner(), user, &pool).await
     }
 }

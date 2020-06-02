@@ -6,7 +6,7 @@ use crate::schema::users;
 
 use crate::items::crud::{Create, Find};
 
-#[derive(Queryable, Serialize, Insertable, Debug)]
+#[derive(Identifiable, Queryable, Serialize, Insertable, Debug, Clone)]
 pub struct User {
     pub id: Uuid,
     pub username: String,

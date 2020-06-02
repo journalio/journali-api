@@ -6,6 +6,7 @@ table! {
         parent_type -> Nullable<Int2>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        owner_id -> Uuid,
     }
 }
 
@@ -53,6 +54,8 @@ table! {
         password -> Text,
     }
 }
+
+joinable!(items -> users (owner_id));
 
 allow_tables_to_appear_in_same_query!(
     items,

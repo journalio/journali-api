@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::crud::Find;
+use super::crud2::raw_crud::Find;
 use super::reex_diesel::*;
 use super::{ItemLike, ItemType};
 use crate::items::page::Page;
@@ -11,8 +11,12 @@ use crate::items::todo::Todo;
 use crate::items::todo_item::TodoItem;
 use crate::items::Items;
 use crate::schema::items;
+use crate::users::user::User;
 
-#[derive(Insertable, Queryable, Copy, Clone, Serialize)]
+#[derive(
+    Identifiable, Associations, Insertable, Queryable, Copy, Clone, Serialize,
+)]
+#[belongs_to(User, foreign_key = "owner_id")]
 pub struct Item {
     pub(crate) id: Uuid,
     pub(crate) item_type: ItemType,
@@ -20,6 +24,7 @@ pub struct Item {
     pub(crate) parent_type: Option<ItemType>,
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) updated_at: DateTime<Utc>,
+    pub(crate) owner_id: Uuid,
 }
 
 impl ItemLike for Item {
@@ -53,11 +58,29 @@ impl Default for Item {
             parent_type: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
+            owner_id: Uuid::default(),
         }
     }
 }
 
 impl Item {
+    pub fn has_owner<T: super::TypeMarker>(
+        id: Uuid,
+        owner: Uuid,
+        conn: &PgConnection,
+    ) -> bool {
+        use diesel::dsl::{exists, select};
+
+        select(exists(
+            items::table
+                .filter(items::owner_id.eq(owner))
+                .filter(items::id.eq(id))
+                .filter(items::item_type.eq(T::TYPE as i16)),
+        ))
+        .get_result(conn)
+        .unwrap_or(false)
+    }
+
     pub(super) fn delete<T>(id: Uuid, conn: &PgConnection) -> QueryResult<()>
     where
         T: super::TypeMarker,
@@ -102,6 +125,7 @@ impl Item {
                             TodoItem::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
+
                         100 => Items::Page(
                             Page::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
