@@ -43,7 +43,7 @@ where
     }
 }
 
-pub(self) mod intermidiate {
+pub(self) mod intermediate {
     use super::raw_crud;
     use super::IntoModel;
 
@@ -116,7 +116,7 @@ pub(self) mod intermidiate {
 }
 
 pub mod crud2http {
-    use super::{intermidiate, IntoModel};
+    use super::{intermediate, IntoModel};
     use crate::{
         database::exec_on_pool,
         items::{ItemLike, TypeMarker},
@@ -141,7 +141,7 @@ pub mod crud2http {
             + serde::Serialize
             + TypeMarker,
     {
-        exec_on_pool(pool, move |conn| intermidiate::create(create, user, conn))
+        exec_on_pool(pool, move |conn| intermediate::create(create, user, conn))
             .await
             .into_response()
     }
@@ -158,7 +158,7 @@ pub mod crud2http {
             + serde::Serialize
             + TypeMarker,
     {
-        exec_on_pool(pool, move |conn| intermidiate::find::<M>(id, user, conn))
+        exec_on_pool(pool, move |conn| intermediate::find::<M>(id, user, conn))
             .await
             .into_response()
     }
@@ -178,7 +178,7 @@ pub mod crud2http {
             + TypeMarker,
     {
         exec_on_pool(pool, move |conn| {
-            intermidiate::update::<M, U>(id, update, user, conn)
+            intermediate::update::<M, U>(id, update, user, conn)
         })
         .await
         .into_response()
@@ -193,7 +193,7 @@ pub mod crud2http {
         M: 'static + Send + super::raw_crud::Delete + TypeMarker,
     {
         exec_on_pool(pool, move |conn| {
-            intermidiate::delete::<M>(id, user, conn)
+            intermediate::delete::<M>(id, user, conn)
         })
         .await
         .into_response()
