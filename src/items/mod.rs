@@ -70,3 +70,15 @@ pub enum Items {
     TodoItem(TodoItem),
     TextField(TextField),
 }
+
+#[derive(Serialize)]
+pub struct ViewItem {
+    item: Item,
+    subtype: Items,
+}
+
+impl ViewItem {
+    pub fn make(item: Item, subtype: Items) -> Self {
+        ViewItem { item, subtype }
+    }
+}

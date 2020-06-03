@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::Items;
 use crate::{
     items::{ItemTypeNames, TypeMarker},
     schema::text_fields,
@@ -56,6 +57,12 @@ impl ItemLike for NewTextField {
 
     fn parent_type(&self) -> Option<i16> {
         None
+    }
+}
+
+impl From<TextField> for Items {
+    fn from(text_field: TextField) -> Self {
+        Self::TextField(text_field)
     }
 }
 

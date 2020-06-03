@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::Items;
 use crate::{
     items::{ItemTypeNames, TypeMarker},
     schema::pages,
@@ -49,6 +50,12 @@ impl ItemLike for NewPage {
 
     fn parent_type(&self) -> Option<i16> {
         None
+    }
+}
+
+impl From<Page> for Items {
+    fn from(page: Page) -> Self {
+        Self::Page(page)
     }
 }
 

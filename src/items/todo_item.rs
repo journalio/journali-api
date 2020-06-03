@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::items::Items;
 use crate::{
     items::{ItemTypeNames, TypeMarker},
     schema::todo_items,
@@ -53,6 +54,12 @@ impl ItemLike for NewTodoItem {
 
     fn parent_type(&self) -> Option<i16> {
         None
+    }
+}
+
+impl From<TodoItem> for Items {
+    fn from(todo_item: TodoItem) -> Self {
+        Self::TodoItem(todo_item)
     }
 }
 
