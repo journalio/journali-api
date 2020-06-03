@@ -25,7 +25,7 @@ pub struct TextField {
 #[derive(Deserialize)]
 pub struct NewTextField {
     pub text: String,
-    pub text_field_id: Uuid,
+    pub page_id: Uuid,
     pub coord_x: i32,
     pub coord_y: i32,
 }
@@ -52,11 +52,11 @@ impl ItemLike for NewTextField {
     }
 
     fn parent_id(&self) -> Option<Uuid> {
-        None
+        Some(self.page_id)
     }
 
     fn parent_type(&self) -> Option<i16> {
-        None
+        Some(ItemTypeNames::Page as i16)
     }
 }
 

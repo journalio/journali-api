@@ -109,11 +109,13 @@ impl Item {
             .get_result(conn)
     }
 
-    pub(super) fn find_by_parent(
+    pub(super) fn find(
         pid: &Option<Uuid>,
+        user: User,
         conn: &PgConnection,
     ) -> QueryResult<Vec<ViewItem>> {
-        let mut query = items::table.into_boxed();
+        let mut query =
+            items::table.into_boxed().filter(items::owner_id.eq(user.id));
         if pid.is_some() {
             query = query.filter(items::parent_id.eq(pid.unwrap()));
         }
@@ -166,13 +168,12 @@ pub struct UpdateParentRequest {
 
 impl Item {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::update_item_parent)
-            .service(routes::get_items_by_parent);
+        cfg.service(routes::update_item_parent).service(routes::get_items);
     }
 }
 
 mod routes {
-    use actix_web::{get, patch, web, Error, HttpResponse};
+    use actix_web::{get, patch, web, Error, HttpRequest, HttpResponse};
     use serde::Deserialize;
     use uuid::Uuid;
 
@@ -189,12 +190,15 @@ mod routes {
     }
 
     #[get("/items")]
-    pub async fn get_items_by_parent(
+    pub async fn get_items(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         query: web::Query<ItemsByParentRequest>,
     ) -> Result<HttpResponse, Error> {
+        let user = req.extensions().get().cloned().unwrap();
+
         exec_on_pool(&pool, move |conn| {
-            Item::find_by_parent(&query.parent_id, &conn)
+            Item::find(&query.parent_id, user, &conn)
         })
         .await
         .map(|item| HttpResponse::Ok().json(item))

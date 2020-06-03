@@ -49,11 +49,11 @@ impl ItemLike for NewTodoItem {
     }
 
     fn parent_id(&self) -> Option<Uuid> {
-        None
+        Some(self.todo_id)
     }
 
     fn parent_type(&self) -> Option<i16> {
-        None
+        Some(ItemTypeNames::Todo as i16)
     }
 }
 
