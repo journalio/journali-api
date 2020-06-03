@@ -26,6 +26,7 @@ pub struct Item {
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) updated_at: DateTime<Utc>,
     pub(crate) owner_id: Uuid,
+    pub(crate) due_date: Option<DateTime<Utc>>,
 }
 
 impl ItemLike for Item {
@@ -60,6 +61,7 @@ impl Default for Item {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             owner_id: Uuid::default(),
+            due_date: None,
         }
     }
 }
@@ -99,12 +101,12 @@ impl Item {
         diesel::insert_into(items::table).values(self).get_result(conn)
     }
 
-    pub(super) fn update_parent(
+    pub(super) fn update(
         id: &Uuid,
-        form: &UpdateParentRequest,
+        form: &UpdateItemRequest,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
-        diesel::update(items::table.filter(items::columns::id.eq(id)))
+        diesel::update(items::table.filter(items::id.eq(id)))
             .set(form)
             .get_result(conn)
     }
@@ -161,14 +163,15 @@ impl Item {
 
 #[derive(AsChangeset, Deserialize)]
 #[table_name = "items"]
-pub struct UpdateParentRequest {
-    pub(crate) parent_id: Uuid,
-    pub(crate) parent_type: ItemType,
+pub struct UpdateItemRequest {
+    pub(crate) parent_id: Option<Uuid>,
+    pub(crate) parent_type: Option<ItemType>,
+    pub(crate) due_date: Option<DateTime<Utc>>,
 }
 
 impl Item {
     pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
-        cfg.service(routes::update_item_parent).service(routes::get_items);
+        cfg.service(routes::update).service(routes::get_items);
     }
 }
 
@@ -178,7 +181,7 @@ mod routes {
     use uuid::Uuid;
 
     use crate::{
-        database::exec_on_pool, items::item::UpdateParentRequest,
+        database::exec_on_pool, items::item::UpdateItemRequest,
         utils::responsable::Responsable, DbPool,
     };
 
@@ -206,13 +209,13 @@ mod routes {
     }
 
     #[patch("/items/{id}")]
-    pub async fn update_item_parent(
+    pub async fn update(
         pool: web::Data<DbPool>,
         id: web::Path<Uuid>,
-        form: web::Json<UpdateParentRequest>,
+        form: web::Json<UpdateItemRequest>,
     ) -> Result<HttpResponse, Error> {
         exec_on_pool(&pool, move |conn| {
-            Item::update_parent(&id.into_inner(), &form, &conn)
+            Item::update(&id.into_inner(), &form, &conn)
         })
         .await
         .into_response()
