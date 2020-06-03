@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    crud::{Create, Delete, Find, Update},
+    crud2::{raw_crud, ModelFromPartial},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -19,7 +19,7 @@ pub struct Page {
     pub title: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct NewPage {
     pub title: String,
 }
@@ -52,37 +52,22 @@ impl ItemLike for NewPage {
     }
 }
 
-impl Create for Page {
-    type Create = NewPage;
-
-    fn create(new_page: &NewPage, conn: &PgConnection) -> QueryResult<Self> {
-        let item = new_page.as_new_item();
-        let page = Self {
-            id: item.id,
-            item_type: item.item_type,
-            title: new_page.title.clone(),
-        };
-
-        item.create(conn)?;
-        diesel::insert_into(pages::table).values(&page).get_result(conn)
+impl raw_crud::Create for Page {
+    fn create(self, conn: &PgConnection) -> QueryResult<Self> {
+        diesel::insert_into(pages::table).values(&self).get_result(conn)
     }
 }
 
-impl Find for Page {
-    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        pages::table
-            .filter(pages::id.eq(id))
-            .filter(pages::item_type.eq(Self::TYPE as i16))
-            .get_result(conn)
+impl ModelFromPartial<NewPage> for Page {
+    fn from_partial(partial: NewPage, item: &crate::items::item::Item) -> Self {
+        Self { id: item.id, item_type: item.item_type, title: partial.title }
     }
 }
 
-impl Update for Page {
-    type Update = UpdatePage;
-
+impl raw_crud::Update<UpdatePage> for Page {
     fn update(
         id: Uuid,
-        form: &UpdatePage,
+        update_page: UpdatePage,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
@@ -90,12 +75,21 @@ impl Update for Page {
                 .filter(pages::columns::id.eq(id))
                 .filter(pages::item_type.eq(Self::TYPE as i16)),
         )
-        .set(form)
+        .set(update_page)
         .get_result(conn)
     }
 }
 
-impl Delete for Page {
+impl raw_crud::Find for Page {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        pages::table
+            .filter(pages::columns::id.eq(id))
+            .filter(pages::item_type.eq(Self::TYPE as i16))
+            .get_result(conn)
+    }
+}
+
+impl raw_crud::Delete for Page {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
         super::Item::delete::<Self>(id, conn)
     }
@@ -111,43 +105,60 @@ impl Page {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
     use uuid::Uuid;
 
-    use crate::{items::crud::Crudder, DbPool};
+    use crate::{items::crud2::crud2http, DbPool};
 
     use super::{NewPage, Page, UpdatePage};
 
     #[post("/pages")]
     pub async fn create_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         form: web::Json<NewPage>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::create(form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::create::<Page, _>(form.into_inner(), user, &pool).await
     }
 
     #[get("/pages/{id}")]
     pub async fn find_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::find(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::find::<Page>(id.into_inner(), user, &pool).await
     }
 
     #[patch("/pages/{id}")]
     pub async fn update_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
         form: web::Json<UpdatePage>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::update(id.into_inner(), form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+
+        crud2http::update::<Page, _>(
+            id.into_inner(),
+            form.into_inner(),
+            user,
+            &pool,
+        )
+        .await
     }
 
     #[delete("/pages/{id}")]
     pub async fn delete_page(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<Page>::delete(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::delete::<Page>(id.into_inner(), user, &pool).await
     }
 }

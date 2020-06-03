@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    crud::{Create, Delete, Find, Update},
+    crud2::{raw_crud, ModelFromPartial},
     reex_diesel::*,
     ItemLike, ItemType,
 };
@@ -24,6 +24,7 @@ pub struct TodoItem {
 pub struct NewTodoItem {
     pub title: String,
     pub todo_id: Uuid,
+    pub is_checked: bool,
 }
 
 #[derive(Deserialize, AsChangeset)]
@@ -47,49 +48,38 @@ impl ItemLike for NewTodoItem {
     }
 
     fn parent_id(&self) -> Option<Uuid> {
-        Some(self.todo_id)
+        None
     }
 
     fn parent_type(&self) -> Option<i16> {
-        Some(ItemTypeNames::Todo as i16)
+        None
     }
 }
 
-impl Create for TodoItem {
-    type Create = NewTodoItem;
+impl raw_crud::Create for TodoItem {
+    fn create(self, conn: &PgConnection) -> QueryResult<Self> {
+        diesel::insert_into(todo_items::table).values(&self).get_result(conn)
+    }
+}
 
-    fn create(
-        new_todo_item: &NewTodoItem,
-        conn: &PgConnection,
-    ) -> QueryResult<Self> {
-        let item = new_todo_item.as_new_item();
-        let todo = Self {
+impl ModelFromPartial<NewTodoItem> for TodoItem {
+    fn from_partial(
+        partial: NewTodoItem,
+        item: &crate::items::item::Item,
+    ) -> Self {
+        Self {
             id: item.id,
             item_type: item.item_type,
-            title: new_todo_item.title.clone(),
-            is_checked: false,
-        };
-
-        item.create(conn)?;
-        diesel::insert_into(todo_items::table).values(&todo).get_result(conn)
+            title: partial.title,
+            is_checked: partial.is_checked,
+        }
     }
 }
 
-impl Find for TodoItem {
-    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
-        todo_items::table
-            .filter(todo_items::columns::id.eq(id))
-            .filter(todo_items::item_type.eq(Self::TYPE as i16))
-            .get_result(conn)
-    }
-}
-
-impl Update for TodoItem {
-    type Update = UpdateTodoItem;
-
+impl raw_crud::Update<UpdateTodoItem> for TodoItem {
     fn update(
         id: Uuid,
-        update_todo_item: &UpdateTodoItem,
+        update_todo_item: UpdateTodoItem,
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         diesel::update(
@@ -102,7 +92,16 @@ impl Update for TodoItem {
     }
 }
 
-impl Delete for TodoItem {
+impl raw_crud::Find for TodoItem {
+    fn find(id: Uuid, conn: &PgConnection) -> QueryResult<Self> {
+        todo_items::table
+            .filter(todo_items::columns::id.eq(id))
+            .filter(todo_items::item_type.eq(Self::TYPE as i16))
+            .get_result(conn)
+    }
+}
+
+impl raw_crud::Delete for TodoItem {
     fn delete(id: Uuid, conn: &PgConnection) -> QueryResult<()> {
         super::Item::delete::<Self>(id, conn)
     }
@@ -118,44 +117,60 @@ impl TodoItem {
 }
 
 mod routes {
-    use actix_web::{delete, get, patch, post, web, Error, HttpResponse};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
     use uuid::Uuid;
 
-    use crate::{items::crud::Crudder, DbPool};
+    use crate::{items::crud2::crud2http, DbPool};
 
     use super::{NewTodoItem, TodoItem, UpdateTodoItem};
 
-    #[post("/todo-items")]
+    #[post("/todo_items")]
     pub async fn create_todo_item(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         form: web::Json<NewTodoItem>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TodoItem>::create(form.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::create::<TodoItem, _>(form.into_inner(), user, &pool).await
     }
 
-    #[get("/todo-items/{id}")]
+    #[get("/todo_items/{id}")]
     pub async fn find_todo_item(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TodoItem>::find(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::find::<TodoItem>(id.into_inner(), user, &pool).await
     }
 
-    #[patch("/todo-items/{id}")]
+    #[patch("/todo_items/{id}")]
     pub async fn update_todo_item(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
         form: web::Json<UpdateTodoItem>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TodoItem>::update(id.into_inner(), form.into_inner(), &pool)
-            .await
+        let user = req.extensions().get().cloned().unwrap();
+
+        crud2http::update::<TodoItem, _>(
+            id.into_inner(),
+            form.into_inner(),
+            user,
+            &pool,
+        )
+        .await
     }
 
-    #[delete("/todos-items/{id}")]
+    #[delete("/todo_items/{id}")]
     pub async fn delete_todo_item(
         pool: web::Data<DbPool>,
+        req: HttpRequest,
         id: web::Path<Uuid>,
     ) -> Result<HttpResponse, Error> {
-        Crudder::<TodoItem>::delete(id.into_inner(), &pool).await
+        let user = req.extensions().get().cloned().unwrap();
+        crud2http::delete::<TodoItem>(id.into_inner(), user, &pool).await
     }
 }

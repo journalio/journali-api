@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use crate::utils::responsable::Responsable;
 use crate::{database::exec_on_pool, DbPool};
-
 use actix_web::{Error, HttpResponse};
 
 pub trait Create: Sized {

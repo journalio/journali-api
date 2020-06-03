@@ -21,7 +21,7 @@ mod reex_diesel {
 }
 
 pub mod crud;
-
+pub mod crud2;
 pub mod item;
 pub mod page;
 pub mod text_field;
