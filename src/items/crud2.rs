@@ -44,24 +44,23 @@ where
 }
 
 pub(self) mod intermediate {
-    use super::raw_crud;
-    use super::IntoModel;
-
-    use crate::items::{ItemLike, TypeMarker};
-    use crate::users::user::User;
-
-    use crate::items::item::Item;
-
     use diesel::{pg::PgConnection, QueryResult};
     use uuid::Uuid;
+
+    use crate::items::item::Item;
+    use crate::items::{ItemLike, Items, TypeMarker, ViewItem};
+    use crate::users::user::User;
+
+    use super::raw_crud;
+    use super::IntoModel;
 
     pub fn create<M>(
         create: impl IntoModel<M> + ItemLike,
         user: User,
         conn: &PgConnection,
-    ) -> QueryResult<M>
+    ) -> QueryResult<ViewItem>
     where
-        M: raw_crud::Create,
+        M: raw_crud::Create + Into<Items>,
     {
         let mut item = create.as_item();
         let model = create.into_model(&item);
@@ -69,7 +68,7 @@ pub(self) mod intermediate {
         item.owner_id = user.id;
 
         item.create(conn)?;
-        model.create(conn)
+        model.create(conn).map(|model| ViewItem::make(item, model.into()))
     }
 
     pub fn update<M, U>(
@@ -116,7 +115,10 @@ pub(self) mod intermediate {
 }
 
 pub mod crud2http {
-    use super::{intermediate, IntoModel};
+    use actix_web::{Error, HttpResponse};
+    use uuid::Uuid;
+
+    use crate::items::Items;
     use crate::{
         database::exec_on_pool,
         items::{ItemLike, TypeMarker},
@@ -125,8 +127,7 @@ pub mod crud2http {
         DbPool,
     };
 
-    use actix_web::{Error, HttpResponse};
-    use uuid::Uuid;
+    use super::{intermediate, IntoModel};
 
     pub async fn create<M, N>(
         create: N,
@@ -135,11 +136,7 @@ pub mod crud2http {
     ) -> Result<HttpResponse, Error>
     where
         N: 'static + Send + IntoModel<M> + ItemLike,
-        M: 'static
-            + Send
-            + super::raw_crud::Create
-            + serde::Serialize
-            + TypeMarker,
+        M: 'static + Send + super::raw_crud::Create + TypeMarker + Into<Items>,
     {
         exec_on_pool(pool, move |conn| intermediate::create(create, user, conn))
             .await
