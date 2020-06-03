@@ -20,7 +20,7 @@ pub mod schema;
 mod database;
 pub mod items;
 pub mod users;
-
+pub mod tags;
 /// The sole purpose of this module is to be
 /// able to reference the current commit hash.
 pub(crate) mod app_version {
