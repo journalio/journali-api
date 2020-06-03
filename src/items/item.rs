@@ -2,9 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::crud2::raw_crud::Find;
-use super::reex_diesel::*;
-use super::{ItemLike, ItemType};
 use crate::items::page::Page;
 use crate::items::text_field::TextField;
 use crate::items::todo::Todo;
@@ -12,6 +9,10 @@ use crate::items::todo_item::TodoItem;
 use crate::items::{Items, ViewItem};
 use crate::schema::items;
 use crate::users::user::User;
+
+use super::crud2::raw_crud::Find;
+use super::reex_diesel::*;
+use super::{ItemLike, ItemType};
 
 #[derive(
     Identifiable, Associations, Insertable, Queryable, Copy, Clone, Serialize,
@@ -120,34 +121,34 @@ impl Item {
             items
                 .into_iter()
                 .map(|item| match item.item_type {
-                    200 => ViewItem {
+                    200 => ViewItem::make(
                         item,
-                        subtype: Items::Todo(
+                        Items::Todo(
                             Todo::find(item.id, &conn)
                                 .expect("Failed to load todo"),
                         ),
-                    },
-                    210 => ViewItem {
+                    ),
+                    210 => ViewItem::make(
                         item,
-                        subtype: Items::TodoItem(
+                        Items::TodoItem(
                             TodoItem::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                    },
-                    100 => ViewItem {
+                    ),
+                    100 => ViewItem::make(
                         item,
-                        subtype: Items::Page(
+                        Items::Page(
                             Page::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                    },
-                    300 => ViewItem {
+                    ),
+                    300 => ViewItem::make(
                         item,
-                        subtype: Items::TextField(
+                        Items::TextField(
                             TextField::find(item.id, &conn)
                                 .expect("Failed to load todo item"),
                         ),
-                    },
+                    ),
                     _ => unreachable!("Please report an error"),
                 })
                 .rev()
