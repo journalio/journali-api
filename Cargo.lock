@@ -560,6 +560,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dotenv"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
+
+[[package]]
 name = "dtoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -922,7 +928,7 @@ dependencies = [
  "bcrypt",
  "chrono",
  "diesel",
- "dotenv",
+ "dotenv 0.15.0",
  "env_logger",
  "jsonwebtoken",
  "load-dotenv",
@@ -995,7 +1001,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdd1d5616577013d84a1bf40c4c7d7aaeeb3fe96cb023a3b90f6897158e6c692"
 dependencies = [
- "dotenv",
+ "dotenv 0.13.0",
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
