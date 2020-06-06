@@ -7,6 +7,7 @@ table! {
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
         owner_id -> Uuid,
+        due_date -> Nullable<Timestamptz>,
     }
 }
 
