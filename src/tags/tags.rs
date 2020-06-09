@@ -8,6 +8,7 @@ use diesel::ExpressionMethods;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use diesel::prelude::*;
+use super::tags_items::TagsItem;
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Tag {
@@ -17,12 +18,48 @@ pub struct Tag {
     pub owner_id: Uuid,
 }
 
+#[derive(Serialize)]
+pub struct TagInfo {
+    id: Uuid,
+    name: String,
+    color: String,
+    owner_id: Uuid,
+    items: Vec<(Uuid, i16)>
+}
+
 impl Tag {
     fn from_partial(new_tag: NewTag, user: User) -> Self {
         let NewTag { name, color } = new_tag;
         Self { id: Uuid::new_v4(), name, color, owner_id: user.id }
     }
     
+    fn find_all(user: User, connection: &PgConnection) -> QueryResult<Vec<TagInfo>> {
+        let mut query = tags::table.filter(tags::columns::owner_id.eq(user.id)).into_boxed();
+
+        query.load::<Tag>(connection).and_then(|tags| {
+            tags.into_iter()
+                .map(|tag| {
+                    let tagsitems = TagsItem::find_all(tag.id, connection)?;
+
+                    let tagsitems = tagsitems
+                        .into_iter()
+                        .map(|tagsitem| (tagsitem.item_id, tagsitem.item_type))
+                        .collect::<Vec<_>>();
+
+                    let Tag { id, name, color, owner_id } = tag; 
+                    
+                    Ok(TagInfo {
+                        id,
+                        name,
+                        color,
+                        owner_id,
+                        items: tagsitems
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+    }
+
     fn create(
         new_tag: NewTag,
         user: User,
@@ -71,14 +108,36 @@ pub struct UpdateTag {
     color: String,
 }
 
+impl Tag {
+    pub fn routes(cfg: &mut actix_web::web::ServiceConfig) {
+        cfg.service(routes::find_all);
+        cfg.service(routes::create_tag);
+        cfg.service(routes::update_tag);
+        cfg.service(routes::delete_tag);
+    }
+}
+
+
 mod routes {
-    use actix_web::{post, delete, patch, web, Error, HttpRequest, HttpResponse};
+    use actix_web::{post, delete, patch, get, web, Error, HttpRequest, HttpResponse};
 
     use super::{NewTag, Tag, UpdateTag};
     use crate::database::exec_on_pool;
     use crate::utils::responsable::Responsable;
     use crate::DbPool;
     use uuid::Uuid;
+    
+    #[get("/tags")]
+    pub async fn find_all(
+        pool: web::Data<DbPool>,
+        request: HttpRequest,
+    ) -> Result<HttpResponse, Error> {
+        let user = request.extensions().get().cloned().unwrap();
+
+        exec_on_pool(&pool, |conn| Tag::find_all(user, conn))
+            .await
+            .into_response()
+    }
 
     #[post("/tags")]
     pub async fn create_tag(

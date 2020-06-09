@@ -15,4 +15,8 @@ impl TagsItem {
     pub(super) fn create(&self, conn: &PgConnection) -> QueryResult<Self> {
         diesel::insert_into(tags_items::table).values(self).get_result(conn)
     }
+
+    pub fn find_all(tag_id: Uuid, conn: &PgConnection) -> QueryResult<Vec<Self>> {
+        tags_items::table.filter(tags_items::columns::tag_id.eq(tag_id)).load(conn)
+    }
 }

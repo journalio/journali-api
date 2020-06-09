@@ -11,6 +11,7 @@ use env_logger::Env;
 use serde::Serialize;
 
 use journali_api::{
+    tags::tags::Tag,
     items::{
         item::Item, page::Page, text_field::TextField, todo::Todo,
         todo_item::TodoItem,
@@ -62,7 +63,8 @@ async fn main() -> std::io::Result<()> {
                         .configure(Page::routes)
                         .configure(Todo::routes)
                         .configure(TodoItem::routes)
-                        .configure(TextField::routes),
+                        .configure(TextField::routes)
+                        .configure(Tag::routes),
                 ),
             )
     })
