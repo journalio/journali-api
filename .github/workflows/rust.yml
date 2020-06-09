@@ -61,6 +61,10 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Migrate database
+        uses: ducharmemp/diesel-cli-action@0.1.0
+        with:
+          migration-directories: migrations
       - name: Run cargo-tarpaulin
         uses: WesleyKlop/tarpaulin@output-option
         with:
