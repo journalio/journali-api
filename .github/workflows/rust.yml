@@ -80,7 +80,7 @@ jobs:
                     command: test
                     args: --features "strict"
                 env:
-                    DATABASE_URL: postgres://journali:journali@postgres:${{ job.services.postgres.ports['5432'] }}/journali
+                    DATABASE_URL: postgres://journali:journali@localhost:${{ job.services.postgres.ports['5432'] }}/journali
 
     fmt:
         name: fmt
