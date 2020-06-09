@@ -8,7 +8,7 @@ on:
 
 env:
     RUST_APP_VERSION: ${{ github.sha }}
- 
+
 jobs:
     check:
         name: check
@@ -44,6 +44,15 @@ jobs:
     test:
         name: test
         runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:latest
+                ports:
+                    - 5432/tcp
+                env:
+                    POSTGRES_DB: journali
+                    POSTGRES_PASSWORD: journali
+                    POSTGRES_USER: journali
         steps:
             -   uses: actions/checkout@v2
             -   name: Install latest stable
@@ -70,6 +79,8 @@ jobs:
                 with:
                     command: test
                     args: --features "strict"
+                env:
+                    DATABASE_URL: postgres://journali:journali@postgres:${{ job.services.postgres.ports['5432'] }}/journali
 
     fmt:
         name: fmt
