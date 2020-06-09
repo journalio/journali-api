@@ -1,119 +1,133 @@
 name: rust
 
 on:
-    push:
-        branches:
-            - master
-    pull_request:
+  push:
+    branches:
+      - master
+  pull_request:
 
 env:
-    RUST_APP_VERSION: ${{ github.sha }}
- 
+  RUST_APP_VERSION: ${{ github.sha }}
+
 jobs:
-    check:
-        name: check
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v2
-            -   name: Install latest stable
-                uses: actions-rs/toolchain@v1
-                with:
-                    toolchain: stable
-                    override: true
-            -   name: Cache cargo registry
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/registry
-                    key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo index
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/git
-                    key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo build
-                uses: actions/cache@v1
-                with:
-                    path: target
-                    key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Run cargo check
-                uses: actions-rs/cargo@v1
-                with:
-                    command: check
-                    args: --features "strict"
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --features "strict"
 
-    test:
-        name: test
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v2
-            -   name: Install latest stable
-                uses: actions-rs/toolchain@v1
-                with:
-                    toolchain: stable
-                    override: true
-            -   name: Cache cargo registry
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/registry
-                    key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo index
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/git
-                    key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo build
-                uses: actions/cache@v1
-                with:
-                    path: target
-                    key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-            -   uses: actions-rs/cargo@v1
-                with:
-                    command: test
-                    args: --features "strict"
+  test:
+    name: test with coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432/tcp
+        env:
+          POSTGRES_DB: journali
+          POSTGRES_PASSWORD: journali
+          POSTGRES_USER: journali
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Run cargo-tarpaulin
+        uses: WesleyKlop/tarpaulin@output-option
+        with:
+          out-type: Lcov
+          version: '0.12.3'
+        env:
+          DATABASE_URL: postgres://journali:journali@localhost:${{ job.services.postgres.ports['5432'] }}/journali
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage-report
+          path: lcov.info
+      - name: report coverage
+        uses: romeovs/lcov-reporter-action@v0.2.17
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          github-token: ${{ github.token }}
+          lcov-file: lcov.info
+      - name: Run codacy-coverage-reporter
+        uses: WesleyKlop/codacy-coverage-reporter-action@add-report-file-argument
+        with:
+          report-file: lcov.info
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
 
-    fmt:
-        name: fmt
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v2
-            -   name: Install latest stable
-                uses: actions-rs/toolchain@v1
-                with:
-                    toolchain: stable
-                    override: true
-            -   run: rustup component add rustfmt
-            -   uses: actions-rs/cargo@v1
-                with:
-                    command: fmt
-                    args: --all -- --check
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
-    clippy:
-        name: clippy
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v2
-            -   name: Install latest stable
-                uses: actions-rs/toolchain@v1
-                with:
-                    toolchain: stable
-                    override: true
-            -   name: Cache cargo registry
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/registry
-                    key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo index
-                uses: actions/cache@v1
-                with:
-                    path: ~/.cargo/git
-                    key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-            -   name: Cache cargo build
-                uses: actions/cache@v1
-                with:
-                    path: target
-                    key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-            -   run: rustup component add clippy
-            -   uses: actions-rs/cargo@v1
-                with:
-                    command: clippy
-                    args: --features "strict"
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --features "strict"
