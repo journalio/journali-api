@@ -49,4 +49,31 @@ impl TagsItem {
             .values(&insert_data)
             .execute(connection)
     }
+
+    pub fn delete_items(
+        tag_id: Uuid,
+        item_ids: Vec<TagsItemRequest>,
+        user: User,
+        connection: &PgConnection,
+    ) -> QueryResult<()> {
+        let _ = user;
+        let records_to_be_deleted =
+            item_ids.into_iter().map(|tagsitem_request| TagsItem {
+                tag_id,
+                item_id: tagsitem_request.id,
+                item_type: tagsitem_request.item_type,
+            });
+
+        for TagsItem { tag_id, item_id, item_type } in records_to_be_deleted {
+            let _ = diesel::delete(
+                tags_items::table
+                    .filter(tags_items::tag_id.eq(tag_id))
+                    .filter(tags_items::item_id.eq(item_id))
+                    .filter(tags_items::item_type.eq(item_type)),
+            )
+            .execute(connection)?;
+        }
+
+        Ok(())
+    }
 }
