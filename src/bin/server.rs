@@ -11,11 +11,11 @@ use env_logger::Env;
 use serde::Serialize;
 
 use journali_api::{
-    tags::tags::Tag,
     items::{
         item::Item, page::Page, text_field::TextField, todo::Todo,
         todo_item::TodoItem,
     },
+    tags::tags::Tag,
     users::User,
     utils::validator,
     DbPool,
