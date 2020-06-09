@@ -118,6 +118,7 @@ impl Tag {
         cfg.service(routes::update_tag);
         cfg.service(routes::delete_tag);
         cfg.service(routes::add_items_to_tag);
+        cfg.service(routes::delete_items_from_tag);
     }
 }
 
@@ -144,6 +145,27 @@ mod routes {
 
         exec_on_pool(&pool, |conn| {
             TagsItem::add_items(id.into_inner(), items.into_inner(), user, conn)
+        })
+        .await
+        .into_response()
+    }
+
+    #[delete("/tags/{id}/items")]
+    pub async fn delete_items_from_tag(
+        pool: web::Data<DbPool>,
+        request: HttpRequest,
+        id: web::Path<Uuid>,
+        items: web::Json<Vec<TagsItemRequest>>,
+    ) -> Result<HttpResponse, Error> {
+        let user = request.extensions().get().cloned().unwrap();
+
+        exec_on_pool(&pool, |conn| {
+            TagsItem::delete_items(
+                id.into_inner(),
+                items.into_inner(),
+                user,
+                conn,
+            )
         })
         .await
         .into_response()
