@@ -1,2 +1,3 @@
-pub mod tags;
-mod tags_items;
+pub mod tag;
+pub use tag as tags;
+pub mod tags_items;

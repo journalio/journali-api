@@ -1,14 +1,13 @@
+use super::tags_items::TagsItem;
 use crate::schema::tags;
 use crate::users::user::User;
 use diesel::pg::PgConnection;
+use diesel::ExpressionMethods;
+use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::RunQueryDsl;
-use diesel::QueryDsl;
-use diesel::ExpressionMethods;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use diesel::prelude::*;
-use super::tags_items::TagsItem;
 
 #[derive(Queryable, Serialize, Insertable)]
 pub struct Tag {
@@ -24,7 +23,7 @@ pub struct TagInfo {
     name: String,
     color: String,
     owner_id: Uuid,
-    items: Vec<(Uuid, i16)>
+    items: Vec<(Uuid, i16)>,
 }
 
 impl Tag {
@@ -32,9 +31,14 @@ impl Tag {
         let NewTag { name, color } = new_tag;
         Self { id: Uuid::new_v4(), name, color, owner_id: user.id }
     }
-    
-    fn find_all(user: User, connection: &PgConnection) -> QueryResult<Vec<TagInfo>> {
-        let mut query = tags::table.filter(tags::columns::owner_id.eq(user.id)).into_boxed();
+
+    fn find_all(
+        user: User,
+        connection: &PgConnection,
+    ) -> QueryResult<Vec<TagInfo>> {
+        let query = tags::table
+            .filter(tags::columns::owner_id.eq(user.id))
+            .into_boxed();
 
         query.load::<Tag>(connection).and_then(|tags| {
             tags.into_iter()
@@ -46,15 +50,9 @@ impl Tag {
                         .map(|tagsitem| (tagsitem.item_id, tagsitem.item_type))
                         .collect::<Vec<_>>();
 
-                    let Tag { id, name, color, owner_id } = tag; 
-                    
-                    Ok(TagInfo {
-                        id,
-                        name,
-                        color,
-                        owner_id,
-                        items: tagsitems
-                    })
+                    let Tag { id, name, color, owner_id } = tag;
+
+                    Ok(TagInfo { id, name, color, owner_id, items: tagsitems })
                 })
                 .collect::<Result<Vec<_>, _>>()
         })
@@ -70,7 +68,12 @@ impl Tag {
         diesel::insert_into(tags::table).values(&tag).get_result(conn)
     }
 
-    fn update(id: Uuid, update_tag: UpdateTag, user: User, conn: &PgConnection) -> QueryResult<Self> {
+    fn update(
+        id: Uuid,
+        update_tag: UpdateTag,
+        user: User,
+        conn: &PgConnection,
+    ) -> QueryResult<Self> {
         diesel::update(
             tags::table
                 .filter(tags::columns::id.eq(id))
@@ -88,7 +91,7 @@ impl Tag {
         diesel::delete(
             tags::table
                 .filter(tags::owner_id.eq(user.id))
-                .filter(tags::id.eq(id))
+                .filter(tags::id.eq(id)),
         )
         .get_result::<Tag>(connection)
         .map(drop)
@@ -114,19 +117,38 @@ impl Tag {
         cfg.service(routes::create_tag);
         cfg.service(routes::update_tag);
         cfg.service(routes::delete_tag);
+        cfg.service(routes::add_items_to_tag);
     }
 }
 
-
 mod routes {
-    use actix_web::{post, delete, patch, get, web, Error, HttpRequest, HttpResponse};
+    use actix_web::{
+        delete, get, patch, post, web, Error, HttpRequest, HttpResponse,
+    };
 
     use super::{NewTag, Tag, UpdateTag};
     use crate::database::exec_on_pool;
+    use crate::tags::tags_items::{TagsItem, TagsItemRequest};
     use crate::utils::responsable::Responsable;
     use crate::DbPool;
     use uuid::Uuid;
-    
+
+    #[patch("/tags/{id}/items")]
+    pub async fn add_items_to_tag(
+        pool: web::Data<DbPool>,
+        request: HttpRequest,
+        id: web::Path<Uuid>,
+        items: web::Json<Vec<TagsItemRequest>>,
+    ) -> Result<HttpResponse, Error> {
+        let user = request.extensions().get().cloned().unwrap();
+
+        exec_on_pool(&pool, |conn| {
+            TagsItem::add_items(id.into_inner(), items.into_inner(), user, conn)
+        })
+        .await
+        .into_response()
+    }
+
     #[get("/tags")]
     pub async fn find_all(
         pool: web::Data<DbPool>,
@@ -161,11 +183,13 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
 
-        exec_on_pool(&pool, move |conn| Tag::update(id.into_inner(), form.into_inner(), user, conn))
-            .await
-            .into_response()
+        exec_on_pool(&pool, move |conn| {
+            Tag::update(id.into_inner(), form.into_inner(), user, conn)
+        })
+        .await
+        .into_response()
     }
-    
+
     #[delete("/tags/{id}")]
     pub async fn delete_tag(
         pool: web::Data<DbPool>,
