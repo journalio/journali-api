@@ -1,18 +1,27 @@
 name: code coverage
 
 on:
-    push:
-        branches:
-            - master
-    pull_request:
+  push:
+    branches:
+      - master
+  pull_request:
 
 env:
   RUST_APP_VERSION: ${{ github.sha }}
- 
+
 jobs:
-  check:
-    name: Rust project
+  test:
+    name: Test with coverage
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432/tcp
+        env:
+          POSTGRES_DB: journali
+          POSTGRES_PASSWORD: journali
+          POSTGRES_USER: journali
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -24,24 +33,26 @@ jobs:
           override: true
 
       - name: Run cargo-tarpaulin
-        uses: WesleyKlop/tarpaulin@output-option 
+        uses: WesleyKlop/tarpaulin@output-option
         with:
           out-type: Lcov
           version: '0.12.3'
+        env:
+          DATABASE_URL: postgres://journali:journali@localhost:${{ job.services.postgres.ports['5432'] }}/journali
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
           name: code-coverage-report
           path: lcov.info
-      
+
       - name: report coverage
         uses: romeovs/lcov-reporter-action@v0.2.17
         if: ${{ github.event_name == 'pull_request' }}
         with:
           github-token: ${{ github.token }}
           lcov-file: lcov.info
-      
+
       - name: Run codacy-coverage-reporter
         uses: WesleyKlop/codacy-coverage-reporter-action@add-report-file-argument
         with:
