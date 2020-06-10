@@ -67,6 +67,7 @@ jobs:
           migration_directories: migrations
         env:
           DATABASE_URL: postgres://journali:journali@postgres:5432/journali
+          SECRET: SUPERSECRETTOKENPLEASEDONOTREADTHISIFYOUDOFORGETITPLZ
       - name: Run cargo-tarpaulin
         uses: WesleyKlop/tarpaulin@output-option
         with:

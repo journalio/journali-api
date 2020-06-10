@@ -17,6 +17,10 @@ pub mod utils;
 //#[allow(clippy::single_component_path_imports)]
 pub mod schema;
 
+#[cfg(test)]
+#[macro_use]
+pub(crate) mod testing;
+
 mod database;
 pub mod items;
 pub mod tags;
