@@ -191,9 +191,19 @@ mod routes {
 #[cfg(test)]
 mod tests {
     use super::routes;
-    use super::{NewUser, User};
+    use super::{LoginUser, NewUser, User};
     use crate::database::create_pool;
-    use actix_web::{body::Body, http::StatusCode, test, App};
+    use actix_web::{
+        body::Body,
+        http::StatusCode,
+        test,
+        test::{call_service, TestRequest},
+        App,
+    };
+
+    fn make_request<T: serde::Serialize>(uri: &str, json: &T) -> TestRequest {
+        test::TestRequest::post().uri(uri).set_json(json)
+    }
 
     #[actix_rt::test]
     async fn test_register() -> Result<(), Box<dyn std::error::Error>> {
@@ -205,15 +215,13 @@ mod tests {
         const USER_NAME: &str = "sailor";
         const PASSWORD: &str = "black pearl";
 
-        let req = test::TestRequest::post()
-            .uri("/register")
-            .set_json(&NewUser {
-                username: USER_NAME.into(),
-                password: PASSWORD.into(),
-            })
-            .to_request();
+        let request = make_request(
+            "/register",
+            &NewUser { username: USER_NAME.into(), password: PASSWORD.into() },
+        )
+        .to_request();
 
-        let mut resp = test::call_service(&mut app, req).await;
+        let mut resp = call_service(&mut app, request).await;
         assert_eq!(resp.status(), StatusCode::OK);
 
         let body = resp.take_body();
@@ -230,6 +238,51 @@ mod tests {
 
         assert!(passwd_verify);
 
+        Ok(())
+    }
+
+    #[actix_rt::test]
+    async fn test_login() -> Result<(), Box<dyn std::error::Error>> {
+        let mut app = test::init_service(
+            App::new()
+                .data(create_pool())
+                .service(routes::register)
+                .service(routes::login),
+        )
+        .await;
+
+        const USER_NAME: &str = "sailor2";
+        const PASSWORD: &str = "black pearl";
+
+        // Need to register before login
+        {
+            let request = make_request(
+                "/register",
+                &NewUser {
+                    username: USER_NAME.into(),
+                    password: PASSWORD.into(),
+                },
+            )
+            .to_request();
+
+            let resp = call_service(&mut app, request).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        // the actual login
+        {
+            let request = make_request(
+                "/login",
+                &LoginUser {
+                    username: USER_NAME.into(),
+                    password: PASSWORD.into(),
+                },
+            )
+            .to_request();
+
+            let resp = call_service(&mut app, request).await;
+            assert_eq!(resp.status(), StatusCode::OK);
+        }
         Ok(())
     }
 }
