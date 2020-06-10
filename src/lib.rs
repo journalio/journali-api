@@ -32,19 +32,9 @@ pub(crate) mod app_version {
     pub const VERSION: &str = env!("RUST_APP_VERSION");
 }
 
-#[get("/hello/{name}")]
-pub async fn hello(data: web::Path<String>) -> impl Responder {
-    HttpResponse::Ok().body(format!("Hello Captain {}!", data.into_inner()))
-}
-
 #[get("/version")]
 pub async fn version() -> impl Responder {
     HttpResponse::Ok().body(app_version::VERSION)
-}
-
-#[get("/demo")]
-pub async fn demo() -> impl Responder {
-    HttpResponse::Ok().body("Dit is een demo!")
 }
 
 #[actix_rt::test]
