@@ -67,7 +67,6 @@ jobs:
           migration_directories: migrations
         env:
           DATABASE_URL: postgres://journali:journali@postgres:5432/journali
-          SECRET: SUPERSECRETTOKENPLEASEDONOTREADTHISIFYOUDOFORGETITPLZ
       - name: Run cargo-tarpaulin
         uses: WesleyKlop/tarpaulin@output-option
         with:
@@ -75,6 +74,7 @@ jobs:
           version: '0.12.3'
         env:
           DATABASE_URL: postgres://journali:journali@localhost:${{ job.services.postgres.ports['5432'] }}/journali
+          SECRET: SUPERSECRETTOKENPLEASEDONOTREADTHISIFYOUDOFORGETITPLZ
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
