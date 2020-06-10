@@ -13,14 +13,14 @@ use super::{
     ItemLike, ItemType,
 };
 
-#[derive(Queryable, Serialize, Insertable)]
+#[derive(Queryable, Deserialize, Serialize, Insertable)]
 pub struct Page {
     pub id: Uuid,
     pub item_type: ItemType,
     pub title: String,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NewPage {
     pub title: String,
 }
@@ -141,8 +141,7 @@ mod routes {
         crud2http::find::<Page>(id.into_inner(), user, &pool).await
     }
 
-    #[patch("/pages/{id}")]
-    pub async fn update_page(
+    #[patch("/pages/{id}")] pub async fn update_page(
         pool: web::Data<DbPool>,
         req: HttpRequest,
         id: web::Path<Uuid>,
@@ -167,5 +166,22 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
         crud2http::delete::<Page>(id.into_inner(), user, &pool).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NewPage, Page};
+    use crate::testing;
+
+    #[actix_rt::test]
+    async fn test_create_page() -> Result<(), Box<dyn std::error::Error>> {
+        testing::create::<_, NewPage, Page, _>(Page::routes, NewPage {
+            title: "testpage".into(),
+        }, "/api/pages", |created_page| {
+            assert_eq!(created_page.title, "testpage");
+        }).await;
+
+        Ok(())
     }
 }

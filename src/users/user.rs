@@ -192,17 +192,18 @@ mod routes {
 mod tests {
     use super::routes;
     use super::{LoginUser, NewUser, User};
-    use crate::database::create_pool;
     use actix_web::{
-        body::Body,
         http::StatusCode,
         test,
-        test::{call_service, TestRequest},
-        App,
+        test::{read_response_json, call_service, TestRequest},
     };
 
-    fn make_request<T: serde::Serialize>(uri: &str, json: &T) -> TestRequest {
+    fn build_request<T: serde::Serialize>(uri: &str, json: &T) -> TestRequest {
         test::TestRequest::post().uri(uri).set_json(json)
+    }
+    
+    fn register_request(username: &str, password: &str) -> TestRequest {
+        build_request("/register", &NewUser { username: username.into(), password: password.into() })
     }
 
     #[actix_rt::test]
@@ -216,23 +217,9 @@ mod tests {
                 const USER_NAME: &str = "sailor jack";
                 const PASSWORD: &str = "black pearl";
 
-                let request = make_request(
-                    "/register",
-                    &NewUser { username: USER_NAME.into(), password: PASSWORD.into() },
-                )
-                .to_request();
+                let request = register_request(USER_NAME, PASSWORD).to_request();
 
-                let mut resp = call_service(&mut app, request).await;
-                assert_eq!(resp.status(), StatusCode::OK);
-
-                let body = resp.take_body();
-
-                let bytes = match body.as_ref() {
-                    Some(Body::Bytes(bytes)) => bytes,
-                    _ => panic!("Expected bytes"),
-                };
-
-                let user: User = serde_json::from_slice(&*bytes)?;
+                let user: User = read_response_json(&mut app, request).await;
 
                 assert_eq!(user.username, USER_NAME);
                 let passwd_verify = bcrypt::verify(PASSWORD, &user.password)?;
@@ -260,14 +247,7 @@ mod tests {
 
                 // Need to register before login
                 {
-                    let request = make_request(
-                        "/register",
-                        &NewUser {
-                            username: USER_NAME.into(),
-                            password: PASSWORD.into(),
-                        },
-                    )
-                    .to_request();
+                    let request = register_request(USER_NAME, PASSWORD).to_request();
 
                     let resp = call_service(&mut app, request).await;
                     assert_eq!(resp.status(), StatusCode::OK);
@@ -275,7 +255,7 @@ mod tests {
 
                 // the actual login
                 {
-                    let request = make_request(
+                    let request = build_request(
                         "/login",
                         &LoginUser {
                             username: USER_NAME.into(),
