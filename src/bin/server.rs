@@ -18,7 +18,7 @@ use journali_api::{
     tags::tags::Tag,
     users::User,
     utils::validator,
-    DbPool,
+    version, DbPool,
 };
 
 #[derive(Serialize)]
@@ -56,17 +56,20 @@ async fn main() -> std::io::Result<()> {
                 })
             }))
             .service(
-                web::scope("/api").configure(User::routes).service(
-                    web::scope("")
-                        .wrap(auth)
-                        .configure(Item::routes)
-                        .configure(Page::routes)
-                        .configure(Todo::routes)
-                        .configure(TodoItem::routes)
-                        .configure(TextField::routes)
-                        .configure(Tag::routes)
-                        .configure(User::route_me),
-                ),
+                web::scope("/api")
+                    .configure(User::routes)
+                    .service(version)
+                    .service(
+                        web::scope("")
+                            .wrap(auth)
+                            .configure(Item::routes)
+                            .configure(Page::routes)
+                            .configure(Todo::routes)
+                            .configure(TodoItem::routes)
+                            .configure(TextField::routes)
+                            .configure(Tag::routes)
+                            .configure(User::route_me),
+                    ),
             )
     })
     .bind("0.0.0.0:8000")?

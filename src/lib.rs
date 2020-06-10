@@ -8,7 +8,7 @@
 #[macro_use]
 extern crate diesel;
 
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, HttpResponse, Responder};
 
 pub use database::DbPool;
 
@@ -32,35 +32,7 @@ pub(crate) mod app_version {
     pub const VERSION: &str = env!("RUST_APP_VERSION");
 }
 
-#[get("/hello/{name}")]
-pub async fn hello(data: web::Path<String>) -> impl Responder {
-    HttpResponse::Ok().body(format!("Hello Captain {}!", data.into_inner()))
-}
-
 #[get("/version")]
 pub async fn version() -> impl Responder {
     HttpResponse::Ok().body(app_version::VERSION)
-}
-
-#[get("/demo")]
-pub async fn demo() -> impl Responder {
-    HttpResponse::Ok().body("Dit is een demo!")
-}
-
-#[actix_rt::test]
-async fn test_hello() {
-    use actix_web::{body::Body, http::StatusCode, test, web::Bytes, App};
-
-    let mut app = test::init_service(App::new().service(hello)).await;
-
-    let req = test::TestRequest::with_uri("/hello/tester").to_request();
-
-    // Call application
-    let mut resp = test::call_service(&mut app, req).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-
-    assert_eq!(
-        resp.take_body().as_ref(),
-        Some(&Body::Bytes(Bytes::from("Hello Captain tester!")))
-    );
 }
