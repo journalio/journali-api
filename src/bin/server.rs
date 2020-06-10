@@ -16,7 +16,7 @@ use journali_api::{
         todo_item::TodoItem,
     },
     tags::tags::Tag,
-    users::User,
+    users::{user, User},
     utils::validator,
     DbPool,
 };
@@ -59,6 +59,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api").configure(User::routes).service(
                     web::scope("")
                         .wrap(auth)
+                        .service(user::me)
                         .configure(Item::routes)
                         .configure(Page::routes)
                         .configure(Todo::routes)
