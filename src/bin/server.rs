@@ -3,14 +3,11 @@
 
 use actix_web::{middleware::Logger, web, App, HttpResponse, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use diesel::{
-    pg,
-    r2d2::{self, ConnectionManager},
-};
 use env_logger::Env;
 use serde::Serialize;
 
 use journali_api::{
+    create_pool,
     items::{
         item::Item, page::Page, text_field::TextField, todo::Todo,
         todo_item::TodoItem,
@@ -18,20 +15,13 @@ use journali_api::{
     tags::tags::Tag,
     users::User,
     utils::validator,
-    version, DbPool,
+    version,
 };
 
 #[derive(Serialize)]
 struct ErrMsg {
     status: String,
     message: String,
-}
-
-fn create_pool() -> DbPool {
-    let conn_spec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
-    let manager = ConnectionManager::<pg::PgConnection>::new(conn_spec);
-
-    r2d2::Pool::builder().build(manager).expect("Failed to create pool.")
 }
 
 #[actix_rt::main]

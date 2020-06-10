@@ -9,6 +9,13 @@ use diesel::{r2d2, PgConnection};
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
+pub fn create_pool() -> DbPool {
+    let conn_spec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
+    let manager = ConnectionManager::<diesel::pg::PgConnection>::new(conn_spec);
+
+    r2d2::Pool::builder().build(manager).expect("Failed to create pool.")
+}
+
 pub(crate) fn exec_on_pool<T, E, F>(
     pool: &DbPool,
     f: F,

@@ -10,7 +10,7 @@ extern crate diesel;
 
 use actix_web::{get, HttpResponse, Responder};
 
-pub use database::DbPool;
+pub use database::{create_pool, DbPool};
 
 pub mod utils;
 
