@@ -68,9 +68,7 @@ impl<'a> Find<&'a LoginUser> for User {
         conn: &PgConnection,
     ) -> QueryResult<Self> {
         users::table
-            .filter(
-                users::username.eq(&loginuser.username), 
-            )
+            .filter(users::username.eq(&loginuser.username))
             .load::<User>(conn)?
             .into_iter()
             .find(move |user| user.verify_password(loginuser))
@@ -131,9 +129,9 @@ mod routes {
     use actix_web::{
         get, patch, post,
         web::{self},
-        Error, HttpResponse, HttpRequest,
+        Error, HttpRequest, HttpResponse,
     };
-    
+
     use crate::utils::responsable::Responsable;
     use crate::{database::exec_on_pool, DbPool};
 
@@ -162,9 +160,12 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         Crudder::<User>::create(new_user.into_inner(), &pool).await
     }
-    
+
     #[get("/me")]
-    pub(crate) async fn me(pool: web::Data<DbPool>, request: HttpRequest) -> Result<HttpResponse, Error> {
+    pub(crate) async fn me(
+        pool: web::Data<DbPool>,
+        request: HttpRequest,
+    ) -> Result<HttpResponse, Error> {
         let user = request.extensions().get().cloned().unwrap();
         exec_on_pool(&pool, move |conn| User::find(&user, conn))
             .await
