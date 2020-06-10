@@ -141,7 +141,8 @@ mod routes {
         crud2http::find::<Page>(id.into_inner(), user, &pool).await
     }
 
-    #[patch("/pages/{id}")] pub async fn update_page(
+    #[patch("/pages/{id}")]
+    pub async fn update_page(
         pool: web::Data<DbPool>,
         req: HttpRequest,
         id: web::Path<Uuid>,
@@ -176,11 +177,12 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_create_page() -> Result<(), Box<dyn std::error::Error>> {
-        testing::create::<_, NewPage, Page, _>(Page::routes, NewPage {
-            title: "testpage".into(),
-        }, "/api/pages", |created_page| {
-            assert_eq!(created_page.title, "testpage");
-        }).await;
+        testing::create::<_, NewPage>(
+            Page::routes,
+            NewPage { title: "testpage".into() },
+            "/api/pages",
+        )
+        .await;
 
         Ok(())
     }

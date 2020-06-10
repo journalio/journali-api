@@ -195,15 +195,18 @@ mod tests {
     use actix_web::{
         http::StatusCode,
         test,
-        test::{read_response_json, call_service, TestRequest},
+        test::{call_service, read_response_json, TestRequest},
     };
 
     fn build_request<T: serde::Serialize>(uri: &str, json: &T) -> TestRequest {
         test::TestRequest::post().uri(uri).set_json(json)
     }
-    
+
     fn register_request(username: &str, password: &str) -> TestRequest {
-        build_request("/register", &NewUser { username: username.into(), password: password.into() })
+        build_request(
+            "/register",
+            &NewUser { username: username.into(), password: password.into() },
+        )
     }
 
     #[actix_rt::test]
