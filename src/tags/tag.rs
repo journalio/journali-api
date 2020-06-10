@@ -98,7 +98,7 @@ impl Tag {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NewTag {
     name: String,
     color: String,
@@ -229,4 +229,22 @@ mod routes {
 
         DIT IS BETER: #[get(/items/{id}/tags)] -> Vec<Tag>
     */
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NewTag, Tag};
+    use crate::testing;
+
+    #[actix_rt::test]
+    async fn test_create_tag() -> Result<(), Box<dyn std::error::Error>> {
+        testing::create::<_, NewTag>(
+            Tag::routes,
+            NewTag { name: "school".into(), color: "0xFFFFFF".into() },
+            "/api/tags",
+        )
+        .await;
+
+        Ok(())
+    }
 }
