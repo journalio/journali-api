@@ -2,9 +2,9 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::errors::Error;
 use uuid::Uuid;
 
-#[derive(serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Token {
-    token: String,
+    pub token: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

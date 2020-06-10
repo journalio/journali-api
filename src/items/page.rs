@@ -13,14 +13,14 @@ use super::{
     ItemLike, ItemType,
 };
 
-#[derive(Queryable, Serialize, Insertable)]
+#[derive(Queryable, Deserialize, Serialize, Insertable)]
 pub struct Page {
     pub id: Uuid,
     pub item_type: ItemType,
     pub title: String,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NewPage {
     pub title: String,
 }
@@ -167,5 +167,23 @@ mod routes {
     ) -> Result<HttpResponse, Error> {
         let user = req.extensions().get().cloned().unwrap();
         crud2http::delete::<Page>(id.into_inner(), user, &pool).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NewPage, Page};
+    use crate::testing;
+
+    #[actix_rt::test]
+    async fn test_create_page() -> Result<(), Box<dyn std::error::Error>> {
+        testing::create::<_, NewPage>(
+            Page::routes,
+            NewPage { title: "testpage".into() },
+            "/api/pages",
+        )
+        .await;
+
+        Ok(())
     }
 }

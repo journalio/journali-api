@@ -22,7 +22,7 @@ pub struct TextField {
     pub coord_y: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NewTextField {
     pub text: String,
     pub page_id: Uuid,

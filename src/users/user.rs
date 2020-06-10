@@ -6,7 +6,9 @@ use crate::schema::users;
 
 use crate::items::crud::{Create, Find};
 
-#[derive(Identifiable, Queryable, Serialize, Insertable, Debug, Clone)]
+#[derive(
+    Identifiable, Queryable, Deserialize, Serialize, Insertable, Debug, Clone,
+)]
 pub struct User {
     pub id: Uuid,
     pub username: String,
@@ -183,5 +185,93 @@ mod routes {
         })
         .await
         .into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::routes;
+    use super::{LoginUser, NewUser, User};
+    use actix_web::{
+        http::StatusCode,
+        test,
+        test::{call_service, read_response_json, TestRequest},
+    };
+
+    fn build_request<T: serde::Serialize>(uri: &str, json: &T) -> TestRequest {
+        test::TestRequest::post().uri(uri).set_json(json)
+    }
+
+    fn register_request(username: &str, password: &str) -> TestRequest {
+        build_request(
+            "/register",
+            &NewUser { username: username.into(), password: password.into() },
+        )
+    }
+
+    #[actix_rt::test]
+    async fn test_register() -> Result<(), Box<dyn std::error::Error>> {
+        test! {
+            setup {
+                |cfg| { cfg.service(routes::register); }
+            }
+
+            test = |app| {
+                const USER_NAME: &str = "sailor jack";
+                const PASSWORD: &str = "black pearl";
+
+                let request = register_request(USER_NAME, PASSWORD).to_request();
+
+                let user: User = read_response_json(&mut app, request).await;
+
+                assert_eq!(user.username, USER_NAME);
+                let passwd_verify = bcrypt::verify(PASSWORD, &user.password)?;
+
+                assert!(passwd_verify);
+
+                Ok(())
+            }
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_login() -> Result<(), Box<dyn std::error::Error>> {
+        test! {
+            setup {
+                |cfg| {
+                    cfg.service(routes::register);
+                    cfg.service(routes::login);
+                }
+            }
+
+            test = |app| {
+                const USER_NAME: &str = "sailor2";
+                const PASSWORD: &str = "black pearl";
+
+                // Need to register before login
+                {
+                    let request = register_request(USER_NAME, PASSWORD).to_request();
+
+                    let resp = call_service(&mut app, request).await;
+                    assert_eq!(resp.status(), StatusCode::OK);
+                }
+
+                // the actual login
+                {
+                    let request = build_request(
+                        "/login",
+                        &LoginUser {
+                            username: USER_NAME.into(),
+                            password: PASSWORD.into(),
+                        },
+                    )
+                    .to_request();
+
+                    let resp = call_service(&mut app, request).await;
+                    assert_eq!(resp.status(), StatusCode::OK);
+                }
+                Ok(())
+            }
+        }
     }
 }

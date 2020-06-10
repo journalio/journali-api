@@ -10,12 +10,16 @@ extern crate diesel;
 
 use actix_web::{get, HttpResponse, Responder};
 
-pub use database::DbPool;
+pub use database::{create_pool, DbPool};
 
 pub mod utils;
 
 //#[allow(clippy::single_component_path_imports)]
 pub mod schema;
+
+#[cfg(test)]
+#[macro_use]
+pub(crate) mod testing;
 
 mod database;
 pub mod items;

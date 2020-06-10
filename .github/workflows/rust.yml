@@ -74,6 +74,7 @@ jobs:
           version: '0.12.3'
         env:
           DATABASE_URL: postgres://journali:journali@localhost:${{ job.services.postgres.ports['5432'] }}/journali
+          SECRET: SUPERSECRETTOKENPLEASEDONOTREADTHISIFYOUDOFORGETITPLZ
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
