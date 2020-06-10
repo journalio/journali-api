@@ -19,7 +19,12 @@ impl User {
         cfg.service(routes::register);
         cfg.service(routes::update_user);
     }
+
+    pub fn route_me(cfg: &mut actix_web::web::ServiceConfig) {
+        cfg.service(routes::me);
+    }
 }
+
 #[derive(Insertable, Serialize, Deserialize, Clone)]
 #[table_name = "users"]
 pub struct NewUser {
@@ -123,8 +128,6 @@ impl User {
     }
 }
 
-pub use routes::me;
-
 mod routes {
     use actix_web::{
         get, patch, post,
@@ -161,15 +164,12 @@ mod routes {
         Crudder::<User>::create(new_user.into_inner(), &pool).await
     }
 
-    #[get("/me")]
-    pub(crate) async fn me(
-        pool: web::Data<DbPool>,
+    #[get("/user/me")]
+    pub(super) async fn me(
         request: HttpRequest,
     ) -> Result<HttpResponse, Error> {
-        let user = request.extensions().get().cloned().unwrap();
-        exec_on_pool(&pool, move |conn| User::find(&user, conn))
-            .await
-            .into_response()
+        let user: User = request.extensions().get().cloned().unwrap();
+        Ok(HttpResponse::Ok().json(user))
     }
 
     #[patch("/users/{id}")]
