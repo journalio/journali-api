@@ -16,7 +16,7 @@ use journali_api::{
         todo_item::TodoItem,
     },
     tags::tags::Tag,
-    users::{User},
+    users::User,
     utils::validator,
     DbPool,
 };
@@ -65,7 +65,7 @@ async fn main() -> std::io::Result<()> {
                         .configure(TodoItem::routes)
                         .configure(TextField::routes)
                         .configure(Tag::routes)
-                        .configure(User::route_me)
+                        .configure(User::route_me),
                 ),
             )
     })
